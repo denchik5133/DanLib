@@ -1,19 +1,47 @@
-# DanLib Base Library
-This is a library that extends the functionality of the basic LUA features. I plan to use it in my various developments, because I often use the same functions that I have to duplicate each time. To avoid this, I use a library that has everything. It does not contain any game content.
+# DanLib - Universal Library for GMod Lua
 
-> [!NOTE]
-> ...
+## Overview
 
+DanLib is a comprehensive library for Garry's Mod Lua development that provides essential utilities, UI components, network functions, and tools to simplify script creation and reduce code duplication.
 
-<div align="left">
-  
-### Features 🛠️:
+**Version:** 3.2.0  
+**Author:** denchik  
+**License:** MIT
 
-</div>
+## 📖 Documentation
 
+Complete documentation and API reference: **https://ddi-docs.site/**
 
-<div align="left">
-  
-### Screenshots 📖 :
+## 🚀 Quick Installation
 
-</div>
+### Manual
+```bash
+# Extract to:
+Steam\steamapps\common\GarrysMod\garrysmod\addons\DanLib\
+```
+
+### Server
+Add to `server.cfg`:
+```lua
+resource.AddWorkshop("2418668622")
+```
+
+### Test
+- Chat: `!danlibmenu`
+- Console: `danlibmenu`
+
+## 🛠️ Features
+
+- Network system with data type support
+- Complete UI framework with themes
+- Configuration management
+- Multi-language localization
+- SQLite database integration
+- Comprehensive utilities
+
+## 🔗 Links
+
+- **Documentation:** https://ddi-docs.site/
+- **Discord:** https://discord.gg/CND6B5sH3j
+- **Steam:** https://steamcommunity.com/profiles/76561198405398290/
+- **GitHub:** https://github.com/denchik5133
