@@ -68,7 +68,7 @@ function HELP:Create(container)
     end
 
     createButton('DOCUMENTETION', 'Explore our documentation to find helpful guides, tips and answers to your questions!', 'HuFRarz', function()
-        gui.OpenURL('https://docs-ddi.site/')
+        gui.OpenURL('https://ddi-docs.site/')
     end )
 
     createButton('DISCORD', 'If you need help or want to share your opinions, join the Discord server!', 'tBLUAUp', function()
