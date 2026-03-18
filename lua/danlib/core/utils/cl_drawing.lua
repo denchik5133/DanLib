@@ -66,6 +66,11 @@ local render_SetStencilZFailOperation = render.SetStencilZFailOperation
 local render_SetStencilReferenceValue = render.SetStencilReferenceValue
 local render_SetStencilCompareFunction = render.SetStencilCompareFunction
 local render_SetStencilPassOperation = render.SetStencilPassOperation
+local _CurTime = CurTime
+local _tableCount = table.Count
+local _tableInsert = table.insert
+local _pairs = pairs
+local _ipairs = ipairs
 
 do
     local SW = ScrW
@@ -79,6 +84,15 @@ do
         local ShadowInstances = {}
         local NextPoolID = 1
         local CurrentInstance = nil
+        local MaxCacheSize = 100 -- Increased for many UI elements
+        local LastCacheCleanup = 0
+        local CleanupInterval = 300 -- Cleanup every 5 minutes
+        
+        -- Performance optimization for many shadows
+        local BatchRenderMode = false
+        local BatchQueue = {}
+        local LastBatchRender = 0
+        local BatchInterval = 0.016 -- Max 60 FPS for batch rendering
 
         local function load_render_targets()
             local w, h = SW(), SH()
@@ -115,7 +129,20 @@ do
         -- @param instanceID (string): Unique identifier
         -- @return (table): Instance data
         local function GetShadowInstance(instanceID)
-            if not ShadowInstances[instanceID] then
+            if (not ShadowInstances[instanceID]) then
+                -- Cleanup old cache if size limit exceeded
+                if _tableCount(ShadowInstances) >= MaxCacheSize then
+                    local curTime = _CurTime()
+                    if (curTime - LastCacheCleanup > CleanupInterval) then
+                        for id, instance in _pairs(ShadowInstances) do
+                            if (instance.lastUsed and curTime - instance.lastUsed > CleanupInterval) then
+                                ShadowInstances[id] = nil
+                            end
+                        end
+                        LastCacheCleanup = curTime
+                    end
+                end
+                
                 local poolID = NextPoolID
                 NextPoolID = NextPoolID + 1
                 
@@ -135,8 +162,11 @@ do
                     cachedWidth = nil,
                     cachedHeight = nil,
                     
-                    isDrawing = false
+                    isDrawing = false,
+                    lastUsed = _CurTime()
                 }
+            else
+                ShadowInstances[instanceID].lastUsed = _CurTime()
             end
             
             return ShadowInstances[instanceID]
@@ -181,99 +211,156 @@ do
         -- @param instanceID (string|nil): Instance ID for caching (optional)
         -- @usage DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false)
         -- @usage DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false, w, h, 'my_button')
+        --- Enable batch rendering mode for many UI elements
+        -- @usage DanLib.DrawShadow:EnableBatchMode(true)
+        function SHADOWS:EnableBatchMode(enable)
+            BatchRenderMode = enable or false
+            if (not enable) then
+                -- Render any pending shadows
+                SHADOWS:FlushBatch()
+            end
+        end
+        
+        --- Flush all pending shadows in batch
+        function SHADOWS:FlushBatch()
+            if (#BatchQueue > 0) then
+                -- Process all queued shadows
+                for _, shadowData in _ipairs(BatchQueue) do
+                    SHADOWS:End(unpack(shadowData))
+                end
+                BatchQueue = {}
+            end
+            LastBatchRender = _CurTime()
+        end
+        
+        --- End shadow drawing with batch support
+        -- @param intensity (number): Shadow layer count (default: 1)
+        -- @param spread (number): Blur spread multiplier (default: 1)
+        -- @param blur (number): Blur iteration count (default: 1)
+        -- @param opacity (number): Shadow opacity 0-255 (default: 255)
+        -- @param direction (number): Shadow direction in degrees (default: 0)
+        -- @param distance (number): Shadow offset in pixels (default: 0)
+        -- @param shadowOnly (boolean): Only draw shadow, not original (default: false)
+        -- @param forceWidth (number|nil): Width for cache check (optional)
+        -- @param forceHeight (number|nil): Height for cache check (optional)
+        -- @param instanceID (string|nil): Instance ID for caching (optional)
         function SHADOWS:End(intensity, spread, blur, opacity, direction, distance, shadowOnly, forceWidth, forceHeight, instanceID)
-		    intensity = intensity or 1
-		    spread = spread or 1
-		    blur = blur or 1
-		    opacity = opacity or 255
-		    direction = direction or 0
-		    distance = distance or 0
-		    shadowOnly = shadowOnly or false
-		    
-		    instanceID = instanceID or CurrentInstance
-		    
-		    local useCache = (instanceID ~= nil)
-		    local instance = useCache and ShadowInstances[instanceID] or nil
-		    
-		    -- Check if we can use cached blur
-		    local needsBlur = true
-		    if useCache and instance.isCached then
-		        local paramsMatch = 
-		            instance.cachedIntensity == intensity and
-		            instance.cachedSpread == spread and
-		            instance.cachedBlur == blur and
-		            instance.cachedOpacity == opacity and
-		            (not forceWidth or instance.cachedWidth == forceWidth) and
-		            (not forceHeight or instance.cachedHeight == forceHeight)
-		        
-		        if paramsMatch then
-		            needsBlur = false
-		        end
-		    end
-		    
-		    if needsBlur then
-		        -- Clear RenderTarget2 before copying
-		        push_render_target(RenderTarget2)
-		        override_alpha_writeEnable(true, true)
-		        clear(0, 0, 0, 0)
-		        override_alpha_writeEnable(false, false)
-		        pop_render_target()
-		        
-		        copy_render_target_to_texture(RenderTarget2)
+            if (BatchRenderMode and instanceID) then
+                -- Queue for batch rendering
+                _tableInsert(BatchQueue, { intensity, spread, blur, opacity, direction, distance, shadowOnly, forceWidth, forceHeight, instanceID })
+                
+                -- Auto-flush if too many queued or time elapsed
+                if #BatchQueue >= 10 or (_CurTime() - LastBatchRender > BatchInterval) then
+                    SHADOWS:FlushBatch()
+                end
+                return
+            end
+            
+            intensity = intensity or 1
+            spread = spread or 1
+            blur = blur or 1
+            opacity = opacity or 255
+            direction = direction or 0
+            distance = distance or 0
+            shadowOnly = shadowOnly or false
+            
+            instanceID = instanceID or CurrentInstance
+            
+            local useCache = (instanceID ~= nil)
+            local instance = useCache and ShadowInstances[instanceID] or nil
+            
+            -- Early exit for zero opacity
+            if (opacity <= 0) then
+                pop_render_target()
+                cam_end2D()
+                if useCache then
+                    instance.isDrawing = false
+                end
+                CurrentInstance = nil
+                return
+            end
+            
+            -- Check if we can use cached blur
+            local needsBlur = true
+            if (useCache and instance.isCached) then
+                local paramsMatch = 
+                    instance.cachedIntensity == intensity and
+                    instance.cachedSpread == spread and
+                    instance.cachedBlur == blur and
+                    instance.cachedOpacity == opacity and
+                    (not forceWidth or instance.cachedWidth == forceWidth) and
+                    (not forceHeight or instance.cachedHeight == forceHeight)
+                
+                if paramsMatch then
+                    needsBlur = false
+                end
+            end
+            
+            if needsBlur then
+                -- Clear RenderTarget2 before copying
+                push_render_target(RenderTarget2)
+                override_alpha_writeEnable(true, true)
+                clear(0, 0, 0, 0)
+                override_alpha_writeEnable(false, false)
+                pop_render_target()
+                
+                copy_render_target_to_texture(RenderTarget2)
 
-		        if (blur > 0) then
-		            override_alpha_writeEnable(true, true)
-		            blur_render_target(RenderTarget2, spread, spread, blur)
-		            override_alpha_writeEnable(false, false)
-		        end
-		        
-		        -- Cache the blurred result if using instanceID
-		        if useCache then
-		            copy_render_target_to_texture(instance.rt)
-		            instance.isCached = true
-		            instance.cachedIntensity = intensity
-		            instance.cachedSpread = spread
-		            instance.cachedBlur = blur
-		            instance.cachedOpacity = opacity
-		            instance.cachedWidth = forceWidth
-		            instance.cachedHeight = forceHeight
-		        end
-		    end
+                if (blur > 0) then
+                    override_alpha_writeEnable(true, true)
+                    blur_render_target(RenderTarget2, spread, spread, blur)
+                    override_alpha_writeEnable(false, false)
+                end
+                
+                -- Cache the blurred result if using instanceID
+                if useCache then
+                    copy_render_target_to_texture(instance.rt)
+                    instance.isCached = true
+                    instance.cachedIntensity = intensity
+                    instance.cachedSpread = spread
+                    instance.cachedBlur = blur
+                    instance.cachedOpacity = opacity
+                    instance.cachedWidth = forceWidth
+                    instance.cachedHeight = forceHeight
+                end
+            end
 
-		    pop_render_target()
+            pop_render_target()
 
-		    -- Draw shadow
-		    set_material(ShadowMaterialGrayscale)
-		    
-		    if (useCache and not needsBlur) then
-		        -- Use cached blur
-		        set_texture(ShadowMaterialGrayscale, '$basetexture', instance.rt)
-		    else
-		        -- Use fresh blur
-		        set_texture(ShadowMaterialGrayscale, '$basetexture', RenderTarget2)
-		    end
+            -- Draw shadow
+            set_material(ShadowMaterialGrayscale)
+            
+            if (useCache and not needsBlur) then
+                -- Use cached blur
+                set_texture(ShadowMaterialGrayscale, '$basetexture', instance.rt)
+            else
+                -- Use fresh blur
+                set_texture(ShadowMaterialGrayscale, '$basetexture', RenderTarget2)
+            end
 
-		    local xOffset = sin(rad(direction)) * distance
-		    local yOffset = cos(rad(direction)) * distance
+            -- Pre-calculate offset values
+            local xOffset = sin(rad(direction)) * distance
+            local yOffset = cos(rad(direction)) * distance
+            local intensityCount = ceil(intensity)
 
-		    for i = 1, ceil(intensity) do
-		        draw_screen_quad_ex(xOffset, yOffset, SW(), SH())
-		    end
+            for i = 1, intensityCount do
+                draw_screen_quad_ex(xOffset, yOffset, SW(), SH())
+            end
 
-		    -- Draw original content
-		    if (not shadowOnly) then
-		        set_material(ShadowMaterial)
-		        set_texture(ShadowMaterial, '$basetexture', RenderTarget)
-		        draw_screen_quad()
-		    end
+            -- Draw original content
+            if (not shadowOnly) then
+                set_material(ShadowMaterial)
+                set_texture(ShadowMaterial, '$basetexture', RenderTarget)
+                draw_screen_quad()
+            end
 
-		    cam_end2D()
-		    
-		    if useCache then
-		        instance.isDrawing = false
-		    end
-		    CurrentInstance = nil
-		end
+            cam_end2D()
+            
+            if useCache then
+                instance.isDrawing = false
+            end
+            CurrentInstance = nil
+        end
         
         --- Invalidate cache for specific instance
         -- @param instanceID (string): Instance ID to invalidate
@@ -282,6 +369,25 @@ do
             if ShadowInstances[instanceID] then
                 ShadowInstances[instanceID].isCached = false
             end
+        end
+        
+        --- Get cache statistics for performance monitoring
+        -- @return (table): Cache stats
+        function SHADOWS:GetCacheStats()
+            return {
+                totalInstances = _tableCount(ShadowInstances),
+                maxCacheSize = MaxCacheSize,
+                batchQueueSize = #BatchQueue,
+                batchModeEnabled = BatchRenderMode
+            }
+        end
+        
+        --- Clear all shadow caches
+        -- @usage DanLib.DrawShadow:ClearAllCaches()
+        function SHADOWS:ClearAllCaches()
+            ShadowInstances = {}
+            BatchQueue = {}
+            NextPoolID = 1
         end
         
         --- Remove instance and free memory
@@ -295,13 +401,25 @@ do
 
         DanLib.DrawShadow = SHADOWS
 
-        -- Clear shadow render target at the start of each frame
+        -- Auto-flush batch at end of frame
+        DHook:Add('PostDrawHUD', 'BShadows.FlushBatch', function()
+            if BatchRenderMode and #BatchQueue > 0 then
+                SHADOWS:FlushBatch()
+            end
+        end)
+        
+        -- Clear shadow render target at the start of each frame (only if needed)
+		local lastClearTime = 0
 		DHook:Add('PreDrawHUD', 'BShadows.ClearRenderTargets', function()
-		    push_render_target(RenderTarget2)
-		    override_alpha_writeEnable(true, true)
-		    clear(0, 0, 0, 0)
-		    override_alpha_writeEnable(false, false)
-		    pop_render_target()
+		    local curTime = _CurTime()
+		    if (curTime - lastClearTime > 0.016) then -- Clear max 60 times per second
+		        push_render_target(RenderTarget2)
+		        override_alpha_writeEnable(true, true)
+		        clear(0, 0, 0, 0)
+		        override_alpha_writeEnable(false, false)
+		        pop_render_target()
+		        lastClearTime = curTime
+		    end
 		end)
 
         -- Stencil helpers
