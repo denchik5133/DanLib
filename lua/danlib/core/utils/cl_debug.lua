@@ -1,19 +1,29 @@
 /***
  *   @addon         DanLib
- *   @version       1.0.0
+ *   @component     CL Debug
+ *   @license       MIT License
+ *   @version       1.0.1
  *   @release_date  15/12/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
  *   @description   Client Debug UI Panel
- *   @license       MIT License
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
+
 
 
 local DBase = DanLib.Func
 local UI = DanLib.UI
+local DNet = DanLib.Net
 local DUtils = DanLib.Utils
 local DTable = DanLib.Table
 local DHook = DanLib.Hook
@@ -39,12 +49,12 @@ local _colorWhite = _Color(255, 255, 255)
 local _colorGray = _Color(130, 130, 130)
 
 -- Grouping logs
-local groupedLogs = {}
+local groupedLogs = { }
 local lastCleanup = 0
-local processedLogs = {}
-local processedErrors = {}
+local processedLogs = { }
+local processedErrors = { }
 
-DEBUG.unreadLogs = DEBUG.unreadLogs or {}
+DEBUG.unreadLogs = DEBUG.unreadLogs or { }
 
 -- Precompiled patterns for highlighting
 local HIGHLIGHT_PATTERNS = {
@@ -155,7 +165,7 @@ local TAG_COLORS = {
 }
 
 -- Cache of highlighted text
-local highlightCache = {}
+local highlightCache = { }
 local highlightCacheSize = 0
 local MAX_CACHE_SIZE = 100
 
@@ -227,7 +237,7 @@ function DEBUG:RefreshLogs()
     self:UpdateGroupedLogs()
     
     -- Sorting
-    local sortedLogs = {}
+    local sortedLogs = { }
     for hash, data in _pairs(groupedLogs) do
         sortedLogs[#sortedLogs + 1] = data
     end
@@ -237,12 +247,12 @@ function DEBUG:RefreshLogs()
     end)
     
     -- Removing old panels
-    for hash, panel in _pairs(self.logPanels or {}) do
+    for hash, panel in _pairs(self.logPanels or { }) do
         if _IsValid(panel) then
             panel:Remove()
         end
     end
-    self.logPanels = {}
+    self.logPanels = { }
     
     -- Precomputing common values
     local maxTextWidth = self.scrollPanel:GetWide() - 30
@@ -390,15 +400,15 @@ function DEBUG:UpdateGroupedLogs()
     
     -- Cleaning every 60 seconds
     if (currentTime - lastCleanup > 60) then
-        groupedLogs = {}
-        processedLogs = {}
-        processedErrors = {}
-        highlightCache = {} -- Clearing the backlight cache
+        groupedLogs = { }
+        processedLogs = { }
+        processedErrors = { }
+        highlightCache = { } -- Clearing the backlight cache
         highlightCacheSize = 0
         lastCleanup = currentTime
     end
     
-    self.unreadLogs = self.unreadLogs or {}
+    self.unreadLogs = self.unreadLogs or { }
     local menuIsOpen = _IsValid(self.panel)
     
     -- Log processing
@@ -486,17 +496,17 @@ DHook:Add('DanLib.MainMenu', 'DanLib.Debug.CreatePanel', function(mainMenu)
     DEBUG:CreatePanel(mainMenu)
 end)
 
--- Приём серверных логов
-net.Receive('DanLib.Debug.ServerLog', function()
-    local logEntry = net.ReadTable()
+-- Reception of server logs
+DNet:On('DanLib.Debug.ServerLog', function()
+    local logEntry = DNet:Tbl()
     if DEBUG:IsEnabled() then
         DEBUG:Log('[SERVER] ' .. logEntry.text, logEntry.level, logEntry.tag)
     end
 end)
 
 -- Receiving server errors
-net.Receive('DanLib.Debug.ServerError', function()
-    local errorEntry = net.ReadTable()
+DNet:On('DanLib.Debug.ServerError', function()
+    local errorEntry = DNet:Tbl()
     if (not DEBUG:IsEnabled()) then
         return
     end
@@ -505,7 +515,7 @@ net.Receive('DanLib.Debug.ServerError', function()
     DTable:Add(DEBUG.errors, {
         error = '[SERVER] ' .. (errorEntry.error or 'Unknown error'),
         stack = errorEntry.stack or '',
-        time = CurTime(),
+        time = _CurTime(),
         timestamp = errorEntry.timestamp or _osDate('%H:%M:%S'),
         type = errorEntry.type or 'RUNTIME',
         realm = 'SERVER'
@@ -517,18 +527,18 @@ net.Receive('DanLib.Debug.ServerError', function()
     end
 end)
 
-concommand.Add('danlib_debug_clear', function()
+DanLib.Concommand:Add('danlib_debug_clear', function()
     local pPlayer = LocalPlayer()
     if (not _IsValid(pPlayer) or not DEBUG:CanPlayerDebug(pPlayer)) then
         return
     end
 
     DEBUG:Clear()
-    groupedLogs = {}
-    processedLogs = {}
-    processedErrors = {}
-    DEBUG.unreadLogs = {}
-    highlightCache = {}
+    groupedLogs = { }
+    processedLogs = { }
+    processedErrors = { }
+    DEBUG.unreadLogs = { }
+    highlightCache = { }
     highlightCacheSize = 0
     
     if DEBUG.RefreshLogs then

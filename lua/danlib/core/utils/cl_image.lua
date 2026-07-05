@@ -1,218 +1,496 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Image System
+ *   @license       MIT License
+ *   @version       2.6.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
- *                
- *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
- *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @description   A system for uploading and managing HTTP content (images) in the client-side
+ *                  portion of the DanLib project, featuring significantly improved image quality.
+ *
+ *   @functions
+ *                  - Handling errors during material loading and showing a placeholder instead of the error texture.
+ *                  - Validating downloaded/cached files via PNG magic bytes before writing to disk.
+ *                  - Saving downloaded materials to a file and updating the material cache.
+ *                  - Downloading materials from the internet and managing download requests using a queue.
+ *                  - Retrieving materials based on their identifiers, checking local cache, and queuing downloads if necessary.
+ *                  - Drawing icons on the screen with optional rotation, rounding and color settings.
+ *                  - Pre-loading icons before they are needed, checking load state, clearing and validating the cache.
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
-/***
- *   cl_image.lua
- *   This file is responsible for downloading and managing HTTP materials (images) in the client side of the DanLib project.
- *
- *   It includes the following functions:
- *   - Handling errors during material loading and setting an error texture.
- *   - Saving downloaded materials to a file and updating the material cache.
- *   - Downloading materials from the internet and managing download requests using a queue.
- *   - Retrieving materials based on their identifiers, checking local cache, and queuing downloads if necessary.
- *   - Drawing icons on the screen with optional rotation and color settings.
- *
- *   The file provides a convenient interface for working with images and materials in the project.
- */
 
+local DHTTP = DanLib.HTTP
+local DBase = DanLib.Func
+local DHook = DanLib.Hook
+local DUtils = DanLib.Utils
+local DTable = DanLib.Table
+local DFileUtil = DanLib.FileUtil
 
+-- surface / render locals (avoid global lookups on hot draw paths)
+local _Color = Color
+local _pairs = pairs
+local _ipairs = ipairs
+local _unpack = unpack
+local _min = math.min
+local _max = math.max
+local _floor = math.floor
+local _Material = Material
+local _SetMaterial = surface.SetMaterial
+local _SetDrawColor = surface.SetDrawColor
+local _DrawTexturedRect = surface.DrawTexturedRect
+local _DrawTexturedRectRotated = surface.DrawTexturedRectRotated
+local _DrawRect = surface.DrawRect
+local _DrawOutlinedRect = surface.DrawOutlinedRect
 
---- Table for storing HTTP materials.
+-- stencil locals — used only by DrawIconRounded
+local _ClearStencil = render.ClearStencil
+local _SetStencilEnable = render.SetStencilEnable
+local _SetStencilWriteMask = render.SetStencilWriteMask
+local _SetStencilTestMask = render.SetStencilTestMask
+local _SetStencilReferenceValue = render.SetStencilReferenceValue
+local _SetStencilCompareFunction = render.SetStencilCompareFunction
+local _SetStencilPassOperation = render.SetStencilPassOperation
+local _SetStencilFailOperation = render.SetStencilFailOperation
+local _RoundedBox = draw.RoundedBox
+
+--- Maximum allowed size of a downloaded icon (5 MB).
+local MAX_ICON_BYTES = 5 * 1024 * 1024
+
+--- PNG file signature (magic bytes). Every valid PNG starts with exactly these 8 bytes.
+-- Used to reject HTML error pages, empty bodies, and other non-image data
+-- before writing anything to disk.
+local PNG_MAGIC = '\137\80\78\71\13\10\26\10'
+
+--- Returns true when raw bytes look like a valid PNG file.
+-- Checks only the 8-byte magic header — cheap and sufficient to catch
+-- imgur 404 HTML pages, empty responses, and obvious corruption.
+-- @param raw (string)  Raw HTTP body or file contents.
+-- @return boolean
+local function _isValidPNG(raw)
+    return raw ~= nil and #raw >= 8 and raw:sub(1, 8) == PNG_MAGIC
+end
+
+--- Pre-baked white color used as the default draw tint.
+-- Declared once to avoid allocating a new Color object on every Paint call.
+local COLOR_WHITE = _Color(255, 255, 255, 255)
+
+--- Unified material cache: icon-id → Material object.
+-- Holds _Material('error') for permanently-failed icons (see failedIcons).
 -- @type table
-local httpMaterial = {}
-httpMaterial.__index = httpMaterial
+local httpMaterial = { }
 
---- Queue for managing material download requests.
+--- Set of icon IDs that permanently failed to load.
+-- When true, draw functions show a placeholder instead of attempting to draw.
 -- @type table
-local queue = {}
+local failedIcons = { }
 
-local Table = DanLib.Table
+--- Tracks icon IDs whose download is currently in-flight.
+-- Prevents the same icon from being queued multiple times across Paint frames.
+-- @type table
+local gMaterials = { }
 
+--- Sequential download queue; each entry is { iconId, matFlags, callback }.
+-- @type table
+local queue = { }
 
---- Flag to determine whether to use a proxy for HTTP requests.
+--- Whether the DuckDuckGo proxy should be used for the next fetch attempt.
+-- Resets to false after every completed attempt (success or permanent failure)
+-- so each new icon always tries the direct Imgur URL first.
 -- @type boolean
 local useProxy = false
 
-local surface = surface
-local draw_material = surface.SetMaterial
-local draw_color = surface.SetDrawColor
-local draw_textured_rect_rotated = surface.DrawTexturedRectRotated
-local draw_textured_rect = surface.DrawTexturedRect
+-- Ensure the icon cache directory exists.
+DFileUtil:CreateDir('danlib/icon')
 
+--- Draws a neutral grey placeholder when an icon could not be loaded.
+-- @param x (number) Draw X.
+-- @param y (number) Draw Y.
+-- @param w (number) Width.
+-- @param h (number) Height.
+local function _drawPlaceholder(x, y, w, h)
+    _SetDrawColor(55, 55, 55, 220)
+    _DrawRect(x, y, w, h)
+    _SetDrawColor(90, 90, 90, 255)
+    _DrawOutlinedRect(x, y, w, h)
 
---- Creates a directory for storing downloaded icons.
-file.CreateDir('danlib/icon')
+    local s = _max(2, _floor(_min(w, h) * 0.22))
+    local cx = _floor(x + w * 0.5)
+    local cy = _floor(y + h * 0.5)
 
+    _SetDrawColor(120, 120, 120, 255)
+    _DrawRect(cx - s, cy - 1, s * 2, 2)
+    _DrawRect(cx - 1, cy - s, 2, s * 2)
+end
 
---- Handles errors during material loading.
--- Sets the material to an error texture and calls the callback function.
--- @param icon: The icon identifier.
--- @param cback: The callback function to call after handling the error.
-local function handleError(icon, cback)
-    httpMaterial[icon] = Material('error')
+--- Marks an icon as permanently failed and fires its callback.
+-- Also resets useProxy so the next icon always tries the direct URL first.
+-- @param icon (string) Icon ID.
+-- @param cback (function) Callback to fire.
+local function _handleError(icon, cback)
+    failedIcons[icon] = true
+    httpMaterial[icon] = _Material('error')
+    gMaterials[icon] = nil
+    useProxy = false
     cback(httpMaterial[icon])
 end
 
+--- Validates, writes and loads a downloaded icon into the cache.
+-- Rejects non-PNG data (e.g. imgur 404 HTML pages) via PNG magic-byte check
+-- so corrupt content is never written to disk.
+-- @param icon (string) Icon ID.
+-- @param raw (string) Raw HTTP response body.
+-- @param matgs (string|nil) Material flags.
+-- @return boolean  true on success, false if data is invalid or missing.
+local function _saveMaterial(icon, raw, matgs)
+    if (not _isValidPNG(raw)) then
+        return false 
+    end
 
---- Saves the downloaded material to a file and updates the material cache.
--- @param icon: The icon identifier.
--- @param raw: The raw image data downloaded.
--- @param matgs: Material settings to apply.
-local function saveMaterial(icon, raw, matgs)
-    file.Write('danlib/icon/' .. icon .. '.png', raw)
-    httpMaterial[icon] = Material('../data/danlib/icon/' .. icon .. '.png', matgs or 'noclamp smooth mips')
+    DFileUtil:Write('danlib/icon/' .. icon .. '.png', raw)
+    httpMaterial[icon] = _Material('../data/danlib/icon/' .. icon .. '.png', matgs or 'noclamp smooth mips')
+    return true
 end
 
-
---- Processes the result of the material load.
---  This function takes data about the uploaded content and performs appropriate actions depending on the size of the uploaded content.
---
--- If the size of the uploaded material exceeds 2 MB (2097152 bytes), the function calls an error handler,
--- setting the material to the error texture and invoking the callback.
--- Otherwise, the function saves the downloaded material to disc, updates the material cache
--- and calls the passed callback function with the loaded material.
---
--- @param icon: Icon identifier corresponding to the material being uploaded.
--- @param len: The length of the loaded content in bytes.
--- @param raw: Raw uploaded material (image).
--- @param matgs: The material settings that are applied when you save.
--- @param cback: A callback function that will be called after load processing is complete.
-local function processDownload(icon, len, raw, matgs, cback)
-    if (len > 2097152) then
-        handleError(icon, cback)
+--- Processes a completed HTTP download.
+-- Rejects non-200 responses, oversized payloads, and non-PNG bodies.
+-- @param icon (string) Icon ID.
+-- @param code (number) HTTP status code returned by the server.
+-- @param len (number) Response length in bytes.
+-- @param raw (string) Raw response body.
+-- @param matgs (string|nil) Material flags.
+-- @param cback (function) Callback.
+local function _processDownload(icon, code, len, raw, matgs, cback)
+    if code ~= 200 or len > MAX_ICON_BYTES or not _saveMaterial(icon, raw, matgs) then
+        _handleError(icon, cback)
     else
-        saveMaterial(icon, raw, matgs)
+        useProxy = false
+        gMaterials[icon] = nil
         cback(httpMaterial[icon])
     end
 end
 
-
---- Downloads a material from the internet.
--- Checks the queue for materials to download and processes them.
--- If the download fails and the proxy hasn't been used, it switches to proxy and retries.
-local function downloadMaterial()
-    if queue[1] then
-        local icon, matgs, cback = unpack(queue[1])
-        DanLib.HTTP:Fetch((useProxy and 'https://proxy.duckduckgo.com/iu/?u=https://i.imgur.com/' or 'https://i.imgur.com/') .. icon .. '.png', function(raw, len, _, code)
-            processDownload(icon, len, raw, matgs, cback)
-        end, function(error)
-            if useProxy then
-                httpMaterial[icon] = Material('error')
-                cback(httpMaterial[icon])
-            else
-                useProxy = true
-                downloadMaterial()
-            end
-        end)
-    end
-end
-
-
---- Retrieves a material based on the icon identifier.
--- Checks if the material is already loaded or saved locally; if not, it queues a download.
--- @param icon: The icon identifier.
--- @param cback: The callback function to call once the material is available.
--- @param _ : Unused parameter.
--- @param matgs: Material settings to apply.
-function DanLib.Func:GetMaterial(icon, cback, _, matgs)
-    if httpMaterial[icon] then
-        cback(httpMaterial[icon])
-    elseif file.Exists('danlib/icon/' .. icon .. '.png', 'DATA') then
-        httpMaterial[icon] = Material('../data/danlib/icon/' .. icon .. '.png', matgs or 'noclamp smooth mips')
-        cback(httpMaterial[icon])
-    else
-        Table:Add(queue, { icon, matgs, function(mat)
-            cback(mat)
-            Table:Remove(queue, 1)
-            downloadMaterial()
-        end })
-
-        if (#queue == 1) then downloadMaterial() end
-    end
-end
-
-
---- Table for utility functions in DanLib.
--- @type table
-DanLib.Utils = DanLib.Utils or {}
-
-
---- Table for caching materials for drawing.
--- @type table
-local materials, gMaterials = {}, {}
-
-
---- Internal function for drawing an icon.
--- Handles loading the material if it is not already loaded, and draws it with optional rotation.
--- @param x: The x position to draw the icon.
--- @param y: The y position to draw the icon.
--- @param w: The width of the icon.
--- @param h: The height of the icon.
--- @param icon: The icon identifier.
--- @param color: The color to use when drawing the icon.
--- @param rotate: Optional rotation angle for the icon.
-local function drawIconInternal(x, y, w, h, icon, color, rotate)
-    color = color or Color(255, 255, 255, 255)
-
-    if (not materials[icon]) then
-        if gMaterials[icon] then return end
-
-        gMaterials[icon] = true
-
-        DanLib.Func:GetMaterial(icon, function(mat)
-            materials[icon] = mat
-            gMaterials[icon] = nil
-        end)
-
+--- Pops the first queued icon and starts its HTTP download.
+-- Falls back to the DuckDuckGo proxy on first failure; marks the icon as
+-- permanently failed if the proxy also fails.
+local function _downloadMaterial()
+    if (not queue[1]) then
         return
     end
 
-    draw_material(materials[icon])
-    draw_color(color.r, color.g, color.b, color.a)
-    
+    local icon, matgs, cback = _unpack(queue[1])
+    local url = (useProxy and 'https://proxy.duckduckgo.com/iu/?u=https://i.imgur.com/' or  'https://i.imgur.com/') .. icon .. '.png'
+
+    DHTTP:Fetch(url, function(raw, len, _, code)
+        _processDownload(icon, code, len, raw, matgs, cback)
+    end, function(err)
+        if useProxy then
+            _handleError(icon, cback)
+        else
+            useProxy = true
+            _downloadMaterial()
+        end
+    end)
+end
+
+--- Shared pre-draw guard used by all draw functions.
+-- Returns true when the icon is ready to draw, false when it is still loading
+-- (or permanently failed — in that case it draws the placeholder itself).
+-- @param x (number) Draw X.
+-- @param y (number) Draw Y.
+-- @param w (number) Width.
+-- @param h (number) Height.
+-- @param icon (string) Imgur image ID.
+-- @return boolean
+local function _ensureReady(x, y, w, h, icon)
+    if (not icon) then
+        return false
+    end
+
+    if failedIcons[icon] then
+        _drawPlaceholder(x, y, w, h)
+        return false
+    end
+
+    if (not httpMaterial[icon]) then
+        if (not gMaterials[icon]) then
+            gMaterials[icon] = true
+            DBase:GetMaterial(icon, function()
+                gMaterials[icon] = nil
+            end)
+        end
+        return false
+    end
+    return true
+end
+
+--- Internal flat-draw dispatcher (no stencil overhead).
+local function _drawIconInternal(x, y, w, h, icon, color, rotate)
+    if (not _ensureReady(x, y, w, h, icon)) then
+        return
+    end
+
+    color = color or COLOR_WHITE
+    _SetMaterial(httpMaterial[icon])
+    _SetDrawColor(color.r, color.g, color.b, color.a)
     if rotate then
-        draw_textured_rect_rotated(x, y, w, h, rotate)
+        _DrawTexturedRectRotated(x, y, w, h, rotate)
     else
-        draw_textured_rect(x, y, w, h)
+        _DrawTexturedRect(x, y, w, h)
     end
 end
 
+--- Reads only the first 8 bytes of a cached file using file.Open,
+-- avoiding the need to load the entire PNG into memory just to check its header.
+-- Returns nil if the file cannot be opened.
+-- @param path (string)  DATA-relative path, e.g. 'danlib/icon/abc123.png'.
+-- @return string|nil  First 8 bytes, or nil on failure.
+local function _readHeader(path)
+    local fh = DFileUtil:Open(path, 'rb', 'DATA')
+    if (not fh) then
+        return nil
+    end
 
--- - Draws an icon at the specified position and size.
--- @param x: The x position to draw the icon.
--- @param y: The y position to draw the icon.
--- @param w: The width of the icon.
--- @param h: The height of the icon.
--- @param icon: The icon identifier.
--- @param color: The color to use when drawing the icon.
-function DanLib.Utils:DrawIcon(x, y, w, h, icon, color)
-    drawIconInternal(x, y, w, h, icon, color, false)
+    local header = fh:Read(8)
+    fh:Close()
+    return header
 end
 
+--- Retrieves the Material for an imgur icon ID.
+-- Resolution order: in-memory cache → validated disk cache → HTTP download queue.
+-- @param icon (string) Imgur image ID (no extension).
+-- @param cback (function) Called with the Material once it is available.
+-- @param _ (any) Unused legacy parameter.
+-- @param matgs (string|nil) Material flags override (default: 'noclamp smooth mips').
+function DBase:GetMaterial(icon, cback, _, matgs)
+    -- 1. In-memory hit — fastest path.
+    if httpMaterial[icon] then
+        cback(httpMaterial[icon])
+        return
+    end
 
--- - Draws a rotated icon at the specified position and size.
--- @param x: The x position to draw the icon.
--- @param y: The y position to draw the icon.
--- @param w: The width of the icon.
--- @param h: The height of the icon.
--- @param r: The rotation angle for the icon.
--- @param icon: The icon identifier.
--- @param color: The color to use when drawing the icon.
-function DanLib.Utils:DrawIconRotated(x, y, w, h, r, icon, color)
-    drawIconInternal(x, y, w, h, icon, color, r)
+    -- 2. Disk hit — validate before loading to catch previously-saved HTML 404 pages.
+    if DFileUtil:Exists('danlib/icon/' .. icon .. '.png', 'DATA') then
+        local raw = DFileUtil:Read('danlib/icon/' .. icon .. '.png', 'DATA')
+        if _isValidPNG(raw) then
+            httpMaterial[icon] = _Material('../data/danlib/icon/' .. icon .. '.png', matgs or 'noclamp smooth mips')
+            cback(httpMaterial[icon])
+            return
+        end
+        -- Corrupt / non-PNG on disk — delete and fall through to re-download.
+        DFileUtil:Delete('danlib/icon/' .. icon .. '.png')
+    end
+
+    -- 3. Queue an HTTP download.
+    DTable:Add(queue, { icon, matgs, function(mat)
+        cback(mat)
+        DTable:Remove(queue, 1)
+        _downloadMaterial()
+    end })
+
+    if (#queue == 1) then
+        _downloadMaterial()
+    end
+end
+
+--- Starts downloading an icon immediately, without waiting for a draw call.
+-- Safe to call multiple times — ignored if the icon is already cached or in-flight.
+-- @param icon (string) Imgur image ID.
+-- @param matgs (string|nil) Optional material flags override.
+function DBase:PreloadMaterial(icon, matgs)
+    if (not icon) then
+        return
+    end
+
+    if (httpMaterial[icon] or gMaterials[icon]) then
+        return
+    end
+
+    if DFileUtil:Exists('danlib/icon/' .. icon .. '.png', 'DATA') then
+        local raw = DFileUtil:Read('danlib/icon/' .. icon .. '.png', 'DATA')
+        if _isValidPNG(raw) then
+            httpMaterial[icon] = _Material('../data/danlib/icon/' .. icon .. '.png', matgs or 'noclamp smooth mips')
+            return
+        end
+        DFileUtil:Delete('danlib/icon/' .. icon .. '.png')
+    end
+
+    gMaterials[icon] = true
+    DBase:GetMaterial(icon, function()
+        gMaterials[icon] = nil
+    end, nil, matgs)
+end
+
+--- Returns true when the icon is fully loaded and ready to draw.
+-- Returns false while downloading, not yet requested, or permanently failed.
+-- @param icon (string)  Imgur image ID.
+-- @return boolean
+function DBase:IsMaterialReady(icon)
+    return httpMaterial[icon] ~= nil and not failedIcons[icon]
+end
+
+--- Clears the in-memory cache for one icon or for every icon.
+-- The next draw or GetMaterial call for a cleared icon will re-load from
+-- disk (if a valid PNG is still there) or re-download from Imgur.
+-- @param icon (string|nil) Icon ID to clear, or nil to clear everything.
+-- @param clearDisk (boolean|nil) Also delete the cached PNG file(s) from disk.
+function DBase:ClearMaterialCache(icon, clearDisk)
+    if icon then
+        httpMaterial[icon] = nil
+        failedIcons[icon] = nil
+        if clearDisk and DFileUtil:Exists('danlib/icon/' .. icon .. '.png', 'DATA') then
+            DFileUtil:Delete('danlib/icon/' .. icon .. '.png')
+        end
+    else
+        for k in _pairs(httpMaterial) do
+            httpMaterial[k] = nil
+        end
+
+        for k in _pairs(failedIcons) do
+            failedIcons[k] = nil
+        end
+
+        if clearDisk then
+            local found = DFileUtil:Find('danlib/icon/*.png', 'DATA')
+            for _, f in _ipairs(found) do
+                DFileUtil:Delete('danlib/icon/' .. f)
+            end
+        end
+    end
+end
+
+--- Scans every PNG file in the disk cache and removes corrupt ones.
+-- "Corrupt" means: missing PNG magic bytes (e.g. an imgur 404 HTML page
+-- saved by an older version of this code), empty, or unreadable.
+-- In-memory entries for deleted files are also cleared so the next draw
+-- or GetMaterial call triggers a fresh download automatically.
+--
+-- Only reads the first 8 bytes of each file (PNG header) via file.Open —
+-- the full file body is never loaded, so performance is constant and fast
+-- regardless of how many icons are cached or how large each file is.
+--
+-- @return number  Count of corrupt files deleted.
+function DBase:ValidateMaterialCache()
+    local found = DFileUtil:Find('danlib/icon/*.png', 'DATA')
+    local removed = 0
+    for _, f in _ipairs(found) do
+        local header = _readHeader('danlib/icon/' .. f)
+        if (not _isValidPNG(header)) then
+            DFileUtil:Delete('danlib/icon/' .. f)
+            -- Strip extension to recover the icon ID.
+            local dotPos = #f - 3 -- length of '.png' is 4; last char of id is at #f-4
+            local id = f:sub(1, dotPos - 1)
+            if (id ~= '') then
+                httpMaterial[id] = nil
+                failedIcons[id] = nil
+            end
+            removed = removed + 1
+        end
+    end
+    return removed
+end
+
+-- Runs once after the client fully initialises.
+-- Scans the icon disk cache and silently removes any files that are not
+-- valid PNGs (e.g. HTML 404 pages saved by an older version of this code).
+-- Only the 8-byte magic header of each file is read, so the scan is fast
+-- regardless of cache size.
+if CLIENT then
+    DHook:Add('Initialize', 'DanLib.ValidateIconCache', function()
+        local removed = DBase:ValidateMaterialCache()
+        if (removed > 0) then
+            DBase:Print('Removed ' .. removed .. ' corrupt cached icon(s). They will be re-downloaded on next use.\n')
+        end
+    end)
+end
+
+--- Returns the imgur image ID if the icon string is an imgur URL,
+-- otherwise returns nil (meaning the icon is an emoji or plain text).
+-- Accepts:
+--   https://i.imgur.com/abc1234.png -> 'abc1234'
+--   https://i.imgur.com/abc1234 -> 'abc1234'
+--   https://imgur.com/abc1234 -> 'abc1234'
+function DUtils:ExtractImgurID(icon)
+    if (not icon) then
+        return nil
+    end
+    return icon:match('^https?://i?%.?imgur%.com/([A-Za-z0-9]+)')
+end
+
+--- Draws an icon at the specified position and size.
+-- @param x (number) Draw X.
+-- @param y (number) Draw Y.
+-- @param w (number) Width.
+-- @param h (number) Height.
+-- @param icon (string) Imgur image ID.
+-- @param color (Color|nil) Tint; defaults to white.
+function DUtils:DrawIcon(x, y, w, h, icon, color)
+    _drawIconInternal(x, y, w, h, icon, color, false)
+end
+
+--- Draws a rotated icon at the specified position and size.
+-- @param x (number) Draw X.
+-- @param y (number) Draw Y.
+-- @param w (number) Width.
+-- @param h (number) Height.
+-- @param r (number) Rotation angle in degrees.
+-- @param icon (string) Imgur image ID.
+-- @param color (Color|nil) Tint; defaults to white.
+function DUtils:DrawIconRotated(x, y, w, h, r, icon, color)
+    _drawIconInternal(x, y, w, h, icon, color, r)
+end
+
+--- Draws an icon clipped to a rounded rectangle via the stencil buffer.
+-- Perfect for circular avatars (radius = w/2) or softly-cornered thumbnails.
+-- Shows the standard placeholder when the icon has not loaded yet.
+-- Must be called from a VGUI Paint hook or a valid render context.
+--
+-- @param x (number) Draw X.
+-- @param y (number) Draw Y.
+-- @param w (number) Width.
+-- @param h (number) Height.
+-- @param icon (string) Imgur image ID.
+-- @param color (Color|nil) Tint; defaults to white.
+-- @param radius (number|nil) Corner radius in pixels; defaults to 4.
+function DUtils:DrawIconRounded(x, y, w, h, icon, color, radius)
+    if (not _ensureReady(x, y, w, h, icon)) then
+        return
+    end
+
+    radius = radius or 4
+    color = color  or COLOR_WHITE
+
+    -- Phase 1: stamp the rounded shape into the stencil buffer.
+    _ClearStencil()
+    _SetStencilEnable(true)
+    _SetStencilWriteMask(0xFF)
+    _SetStencilTestMask(0xFF)
+    _SetStencilReferenceValue(1)
+    _SetStencilCompareFunction(STENCIL_NEVER)
+    _SetStencilFailOperation(STENCIL_REPLACE)
+    _SetStencilPassOperation(STENCIL_KEEP)
+    _RoundedBox(radius, x, y, w, h, COLOR_WHITE)
+
+    -- Phase 2: draw the texture only where stencil == 1.
+    _SetStencilCompareFunction(STENCIL_EQUAL)
+    _SetStencilFailOperation(STENCIL_KEEP)
+    _SetStencilPassOperation(STENCIL_KEEP)
+    _SetMaterial(httpMaterial[icon])
+    _SetDrawColor(color.r, color.g, color.b, color.a)
+    _DrawTexturedRect(x, y, w, h)
+
+    -- Restore stencil state so subsequent VGUI elements are unaffected.
+    _SetStencilEnable(false)
+    _ClearStencil()
 end

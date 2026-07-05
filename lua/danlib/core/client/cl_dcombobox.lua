@@ -1,9 +1,13 @@
 /***
- *   @component     DanLib ComboBox
- *   @version       1.4.0
- *   @file          cl_dcombobox.lua
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @addon         DanLib
+ *   @component     UI ComboBox
+ *   @license       MIT License
+ *   @version       1.4.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
@@ -11,29 +15,24 @@
  *                  Provides a dropdown selection menu with support for icons, custom fonts,
  *                  sorting, and smooth animations. Only one menu can be open at a time.
  *
- *   @part_of       DanLib v3.0.0 and higher
- *                  https://github.com/denchik5133/danlib
- *
- *   @features      - Single active menu enforcement (closes other ComboBoxes)
+ *   @features      
+ *                  - Single active menu enforcement (closes other ComboBoxes)
  *                  - Customizable text direction and alignment
  *                  - Icon support for options
  *                  - Smooth rotation animation for dropdown indicator
  *                  - Sortable options
  *                  - Custom font support
  *
- *   @usage         local combo = DBase.CreateUIComboBox(parent)
+ *   @usage         
+ *                  local combo = DBase.CreateUIComboBox(parent)
  *                  combo:AddChoice('Option 1', 1, true)
  *                  combo:SetDirection(true)
  *                  combo:SetFont('danlib_font_18')
  *
- *   @license       MIT License
- *   @notes         Requires DanLib framework to function properly.
- */
-
-
-/***
- *   Internal Implementation
- *   Handles dropdown menu behavior, option management, and rendering.
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
@@ -80,10 +79,10 @@ end
 --- Clears all choices and resets the ComboBox to default state.
 function COMBOBOX:Clear()
     self:SetText('')
-    self.Choices = {}
-    self.Data = {}
-    self.ChoiceIcons = {}
-    self.Spacers = {}
+    self.Choices = { }
+    self.Data = { }
+    self.ChoiceIcons = { }
+    self.Spacers = { }
     self.selected = nil
     self:CloseMenu()
 end
@@ -135,7 +134,7 @@ end
 --- Gets the text and data of the currently selected option.
 -- @return (string, any): The display text and associated data, or nil if none selected.
 function COMBOBOX:GetSelected()
-    if not self.selected then
+    if (not self.selected) then
         return
     end
     return self:GetOptionText(self.selected), self:GetOptionData(self.selected)
@@ -168,6 +167,7 @@ end
 -- @return (number): The index of the added choice.
 function COMBOBOX:AddChoice(value, data, select, icon)
     local index = DTable:Add(self.Choices, value)
+
     if data then
         self.Data[index] = data
     end
@@ -186,7 +186,7 @@ end
 -- @param index (number): The index of the choice to remove.
 -- @return (string, any): The removed choice's text and data.
 function COMBOBOX:RemoveChoice(index)
-    if not _isnumber(index) then
+    if (not _isnumber(index)) then
         return
     end
 
@@ -201,14 +201,37 @@ function COMBOBOX:IsMenuOpen()
     return _IsValid(self.Menu) and self.Menu:IsVisible()
 end
 
+function COMBOBOX:AddPlayerChoice(pPlayer, select)
+    if (not IsValid(pPlayer)) then
+        return
+    end
+    
+    local index = #self.Choices + 1
+    
+    -- Сохраняем данные игрока
+    self.Choices[index] = pPlayer:Nick()
+    self.Data[index] = pPlayer
+    self.ChoiceIcons[index] = 'avatar://' .. pPlayer:SteamID64() -- Специальный формат
+    
+    -- Флаг для кастомного рендера
+    self.CustomRender = self.CustomRender or { }
+    self.CustomRender[index] = 'player'
+    
+    if select then
+        self:ChooseOption(pPlayer:Nick(), index)
+    end
+    
+    return index
+end
+
 --- Opens the dropdown menu with all available choices.
 -- @param pControlOpener (Panel): The control that triggered the opening (internal use).
 function COMBOBOX:OpenMenu(pControlOpener)
-    if pControlOpener and pControlOpener == self.TextEntry then
+    if (pControlOpener and pControlOpener == self.TextEntry) then
         return
     end
 
-    if #self.Choices == 0 then
+    if (#self.Choices == 0) then
         return
     end
 
@@ -226,7 +249,7 @@ function COMBOBOX:OpenMenu(pControlOpener)
         parent = parent:GetParent()
     end
 
-    if not _IsValid(parent) then
+    if (not _IsValid(parent)) then
         parent = self
     end
 
@@ -236,13 +259,13 @@ function COMBOBOX:OpenMenu(pControlOpener)
     -- Reset icon angle when menu is removed
     self.Menu.OnRemove = function()
         self.iconAngle = 0
-        if ActiveComboBox == self then
+        if (ActiveComboBox == self) then
             ActiveComboBox = nil
         end
     end
 
     if self:GetSortItems() then
-        local sorted = {}
+        local sorted = { }
         for k, v in _pairs(self.Choices) do
             local val = _tostring(v)
             if (_stringlen(val) > 1 and not _tonumber(val) and val:StartsWith('#')) then

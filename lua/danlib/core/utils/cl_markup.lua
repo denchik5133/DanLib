@@ -1,19 +1,26 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Markup
+ *   @license       MIT License
+ *   @version       2.0.10
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
- *	 @source 		Link: https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/includes/modules/markup.lua
+ *
+ *	 @source 		
+ *                  GitHub: https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/includes/modules/markup.lua
  */
 
 
@@ -21,8 +28,9 @@
 local DBase = DanLib.Func
 local DUtils = DanLib.Utils
 local DHook = DanLib.Hook
+local DTable = DanLib.Table
 
--- Performance optimizations: Cache frequently used functions and constants
+-- Cache frequently used functions and constants
 local markupIndex = {}
 markupIndex.__index = markupIndex
 
@@ -31,16 +39,11 @@ local string = string
 local len = string.len
 local match = string.match
 local gmatch = string.gmatch
-local gsub = string.gsub
+local _gsub = string.gsub
 local find = string.find
 local lower = string.lower
 local sub = string.sub
 local explode = string.Explode
-
--- Cached table functions
-local table = table
-local Table = DanLib.Table
-local tremove = table.remove
 
 -- Cached surface functions
 local surface = surface
@@ -58,8 +61,9 @@ local _tostring = tostring
 local _ipairs = ipairs
 local _setmetatable = setmetatable
 local _tonumber = tonumber
-
 local _select = select
+local _CurTime = CurTime
+local _Color = Color
 
 -- Cached math functions
 local math = math
@@ -83,7 +87,7 @@ local TEXT_ALIGN_BOTTOM = TEXT_ALIGN_BOTTOM
 
 
 -- Temporary information used when building text frames (reused for memory optimization)
-local colour_stack = { Color(255, 255, 255) }
+local colour_stack = { _Color(255, 255, 255) }
 local font_stack = { 'danlib_font_18' }
 local bg_color_stack = { nil } -- Background color stack with default transparent background
 local bg_color_pooled_stack = { false } -- Track which bg colors are pooled vs named
@@ -93,57 +97,57 @@ local blocks = {}
 local bg_color_pool = {}
 local bg_color_pool_size = 10 -- Maximum nesting depth for background colors
 for i = 1, bg_color_pool_size do
-    bg_color_pool[i] = Color(255, 255, 255, 255)
+    bg_color_pool[i] = _Color(255, 255, 255, 255)
 end
 local bg_color_pool_index = 0
 
 -- Pre-allocated color objects to reduce garbage collection
-local default_white = Color(255, 255, 255)
-local default_black = Color(0, 0, 0)
+local default_white = _Color(255, 255, 255)
+local default_black = _Color(0, 0, 0)
 local default_transparent = nil -- For transparent backgrounds
 
 -- Optimized color map with pre-allocated Color objects
 local colourmap = {
     -- Black and white
-    ['black'] = Color(0, 0, 0),
-    ['white'] = Color(255, 255, 255),
+    ['black'] = _Color(0, 0, 0),
+    ['white'] = _Color(255, 255, 255),
 
     -- Greys
-    ['dkgrey'] = Color(64, 64, 64),
-    ['grey'] = Color(128, 128, 128),
-    ['ltgrey'] = Color(192, 192, 192),
+    ['dkgrey'] = _Color(64, 64, 64),
+    ['grey'] = _Color(128, 128, 128),
+    ['ltgrey'] = _Color(192, 192, 192),
 
     -- Account for spelling mistakes
-    ['dkgray'] = Color(64, 64, 64),
-    ['gray'] = Color(128, 128, 128),
-    ['ltgray'] = Color(192, 192, 192),
+    ['dkgray'] = _Color(64, 64, 64),
+    ['gray'] = _Color(128, 128, 128),
+    ['ltgray'] = _Color(192, 192, 192),
 
     -- Normal colours
-    ['red'] = Color(255, 0, 0),
-    ['green'] = Color(0, 255, 0),
-    ['blue'] = Color(0, 151, 230),
-    ['yellow'] = Color(255, 255, 0),
-    ['purple'] = Color(255, 0, 255),
-    ['cyan'] = Color(0, 255, 255),
-    ['turq'] = Color(0, 255, 255),
+    ['red'] = _Color(255, 0, 0),
+    ['green'] = _Color(0, 255, 0),
+    ['blue'] = _Color(0, 151, 230),
+    ['yellow'] = _Color(255, 255, 0),
+    ['purple'] = _Color(255, 0, 255),
+    ['cyan'] = _Color(0, 255, 255),
+    ['turq'] = _Color(0, 255, 255),
 
     -- Dark variations
-    ['dkred'] = Color(128, 0, 0),
-    ['dkgreen'] = Color(0, 128, 0),
-    ['dkblue'] = Color(0, 0, 128),
-    ['dkyellow'] = Color(128, 128, 0),
-    ['dkpurple'] = Color(128, 0, 128),
-    ['dkcyan'] = Color(0, 128, 128),
-    ['dkturq'] = Color(0, 128, 128),
+    ['dkred'] = _Color(128, 0, 0),
+    ['dkgreen'] = _Color(0, 128, 0),
+    ['dkblue'] = _Color(0, 0, 128),
+    ['dkyellow'] = _Color(128, 128, 0),
+    ['dkpurple'] = _Color(128, 0, 128),
+    ['dkcyan'] = _Color(0, 128, 128),
+    ['dkturq'] = _Color(0, 128, 128),
 
     -- Light variations
-    ['ltred'] = Color(255, 128, 128),
-    ['ltgreen'] = Color(128, 255, 128),
-    ['ltblue'] = Color(128, 128, 255),
-    ['ltyellow'] = Color(255, 255, 128),
-    ['ltpurple'] = Color(255, 128, 255),
-    ['ltcyan'] = Color(128, 255, 255),
-    ['ltturq'] = Color(128, 255, 255),
+    ['ltred'] = _Color(255, 128, 128),
+    ['ltgreen'] = _Color(128, 255, 128),
+    ['ltblue'] = _Color(128, 128, 255),
+    ['ltyellow'] = _Color(255, 255, 128),
+    ['ltpurple'] = _Color(255, 128, 255),
+    ['ltcyan'] = _Color(128, 255, 255),
+    ['ltturq'] = _Color(128, 255, 255),
 }
 
 -- Cache for parsed colors to avoid repeated parsing
@@ -217,13 +221,13 @@ local function extract_params(p1, p2)
     if (sub(p1, 1, 1) == '/') then
         local tag = sub(p1, 2, -1)
         if (tag == 'color:') then
-            tremove(colour_stack)
+            DTable:Remove(colour_stack)
         elseif (tag == 'font:') then
-            tremove(font_stack)
+            DTable:Remove(font_stack)
         elseif (tag == 'bg:') then
             -- Release pooled background color object back to pool only if it was pooled
-            tremove(bg_color_stack)
-            local was_pooled = tremove(bg_color_pooled_stack)
+            DTable:Remove(bg_color_stack)
+            local was_pooled = DTable:Remove(bg_color_pooled_stack)
             if (was_pooled and bg_color_pool_index > 0) then
                 bg_color_pool_index = bg_color_pool_index - 1
             end
@@ -232,16 +236,16 @@ local function extract_params(p1, p2)
         if (p1 == 'color:') then
             local rgba = colourMatch(p2)
             if (rgba == nil) then
-                rgba = Color(255, 255, 255, 255)
+                rgba = _Color(255, 255, 255, 255)
                 local x, n = { 'r', 'g', 'b', 'a' }, 1
                 for k, v in gmatch(p2, '(%d+),?') do
                     rgba[x[n]] = _tonumber(k)
                     n = n + 1
                 end
             end
-            Table:Add(colour_stack, rgba)
+            DTable:Add(colour_stack, rgba)
         elseif (p1 == 'font:') then
-            Table:Add(font_stack, _tostring(p2))
+            DTable:Add(font_stack, _tostring(p2))
         elseif (p1 == 'bg:') then
             local bg_rgba = bgColourMatch(p2)
             if (bg_rgba == nil) then
@@ -251,7 +255,7 @@ local function extract_params(p1, p2)
                     bg_rgba = bg_color_pool[bg_color_pool_index]
                 else
                     -- Fallback if pool is exhausted (should not happen with reasonable nesting)
-                    bg_rgba = Color(255, 255, 255, 255)
+                    bg_rgba = _Color(255, 255, 255, 255)
                 end
                 -- Parse RGB values into pooled object
                 local x, n = { 'r', 'g', 'b', 'a' }, 1
@@ -263,12 +267,12 @@ local function extract_params(p1, p2)
                 if (n <= 4) then
                     bg_rgba.a = 255
                 end
-                Table:Add(bg_color_stack, bg_rgba)
-                Table:Add(bg_color_pooled_stack, true) -- Mark as pooled
+                DTable:Add(bg_color_stack, bg_rgba)
+                DTable:Add(bg_color_pooled_stack, true) -- Mark as pooled
             else
                 -- Named color from colourmap (shared reference, not pooled)
-                Table:Add(bg_color_stack, bg_rgba)
-                Table:Add(bg_color_pooled_stack, false) -- Mark as named
+                DTable:Add(bg_color_stack, bg_rgba)
+                DTable:Add(bg_color_pooled_stack, false) -- Mark as named
             end
         end
     end
@@ -278,14 +282,14 @@ end
 -- @param str (string): string to be escaped
 -- @return (string): escaped string
 function escape_text(str)
-    return gsub(_tostring(str), escape_pattern, escapeEntities)
+    return _gsub(_tostring(str), escape_pattern, escapeEntities)
 end
 
 -- Function to decode escaped characters
 -- @param str (string): string to decode
 -- @return (string): decoded string
 function unescape_text(str)
-    return gsub(_tostring(str), unescape_pattern, unescapeEntities)
+    return _gsub(_tostring(str), unescape_pattern, unescapeEntities)
 end
 
 -- This function puts data into the "blocks" table depending on whether content is a tag or text.
@@ -297,7 +301,7 @@ local function process_content(content)
 
     if (sub(content, 1, 1) == '{') then
         -- Process tags with error handling
-        local success, err = pcall(gsub, content, tag_pattern, extract_params)
+        local success, err = pcall(_gsub, content, tag_pattern, extract_params)
         if (not success) then
             print('Error during tag processing: ' .. _tostring(err))
         end
@@ -319,7 +323,7 @@ local function process_content(content)
     end
 end
 
--- process_content for 3 parameters. Called by string.gsub
+-- process_content for 3 parameters. Called by _gsub
 -- @param p1 (string): text or tag
 -- @param p2 (string): text or tag
 -- @param p3 (string): text or tag
@@ -434,7 +438,7 @@ function markupIndex:Draw(xOffset, yOffset, halign, valign, alphaoverride, textA
             end
             
             -- drawRect(x, y, width, blk.height)
-            drawBox(6, x - 1, y + 1, width + 2, height - 2, Color(blk.bg_r, blk.bg_g, blk.bg_b, bg_alpha))
+            drawBox(6, x - 1, y + 1, width + 2, height - 2, _Color(blk.bg_r, blk.bg_g, blk.bg_b, bg_alpha))
             i = next_i - 1 -- Skip coalesced blocks
         end
         i = i + 1
@@ -488,7 +492,7 @@ end
 -- @return (Markup): markup object with parsed text blocks and optimized rendering information
 function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
     text = force(escape_text(text))
-    colour_stack = { dColor or Color(255, 255, 255, 255) }
+    colour_stack = { dColor or _Color(255, 255, 255, 255) }
     font_stack = { dFont or 'danlib_font_18' }
     bg_color_stack = { nil } -- Reset background color stack
     bg_color_pooled_stack = { false } -- Reset background color pooled tracking
@@ -498,7 +502,7 @@ function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
     if (not find(text, '{')) then 
         text = text .. '{nop}'
     end
-    gsub(text, '([^{}]*)([{][^}]*[}])([^{}]*)', ProcessMatches)
+    _gsub(text, '([^{}]*)([{][^}]*[}])([^{}]*)', ProcessMatches)
 
     local xOffset = 0
     local yOffset = 0
@@ -512,7 +516,7 @@ function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
     local lineHeight = 0
     for i, blk in _ipairs(blocks) do
         textFont(blk.font)
-        blk.text = gsub(blk.text, '(&.-;)', unescapeEntities)
+        blk.text = _gsub(blk.text, '(&.-;)', unescapeEntities)
 
         local thisY = 0
         local curString = ''
@@ -544,7 +548,7 @@ function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
                             y = yOffset
                         }
                     }
-                    Table:Add(new_block_list, new_block)
+                    DTable:Add(new_block_list, new_block)
                     if (xOffset + x1 > xMax) then 
                         xMax = xOffset + x1
                     end
@@ -575,7 +579,7 @@ function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
                             y = yOffset
                         }
                     }
-                    Table:Add(new_block_list, new_block)
+                    DTable:Add(new_block_list, new_block)
                     if (xOffset + x1 > xMax) then
                         xMax = xOffset + x1
                     end
@@ -613,7 +617,7 @@ function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
                 if (maxwidth and maxwidth > x) then
                     if (xOffset + xSize + x >= maxwidth) then
                         -- need to: find the previous space in the curString
-                        --      if we can't find one, take off the last character and Table:Add as a new block, incrementing the y etc
+                        --      if we can't find one, take off the last character and DTable:Add as a new block, incrementing the y etc
                         local lastSpacePos = len(curString)
                         for k = 1, len(curString) do
                             local chspace = sub(curString, k, k)
@@ -675,7 +679,7 @@ function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
                                     y = yOffset 
                                 }
                             }
-                            Table:Add(new_block_list, new_block)
+                            DTable:Add(new_block_list, new_block)
 
                             if (xOffset + x1 > xMax) then 
                                 xMax = xOffset + x1 
@@ -722,7 +726,7 @@ function markupIndex:ParseMarkup(text, dFont, dColor, maxwidth)
                     y = yOffset
                 }
             }
-            Table:Add(new_block_list, new_block)
+            DTable:Add(new_block_list, new_block)
             lineHeight = thisY
 
             if (xOffset + x1 > xMax) then
@@ -799,18 +803,18 @@ function DUtils:CleanMarkupText(text)
         return cached
     end
     
-    local cleanText = tostring(text)
+    local cleanText = _tostring(text)
     
     -- Remove all types of markup tags:
     -- Color tags: {color:255,0,0}, {color: 255, 0, 0}, {/color:}
-    cleanText = string.gsub(cleanText, '{color:%s*%d+,%s*%d+,%s*%d+}', '')
-    cleanText = string.gsub(cleanText, '{/color:}', '')
+    cleanText = _gsub(cleanText, '{color:%s*%d+,%s*%d+,%s*%d+}', '')
+    cleanText = _gsub(cleanText, '{/color:}', '')
     -- Font tags: {font:Arial}, {font: fontname}, {/font:}
-    cleanText = string.gsub(cleanText, '{font:%s*[%w_%-]+}', '')
-    cleanText = string.gsub(cleanText, '{/font:}', '')
-    -- cleanText = string.gsub(cleanText, '{[^}]*}', '') -- Universal cleanup of all other {any_characters} tags
-    -- cleanText = string.gsub(cleanText, '<[^>]*>', '') -- HTML-like <tag></tag> tags (if used)
-    -- cleanText = string.gsub(cleanText, '%s+', ' ') -- Cleanup of extra spaces
+    cleanText = _gsub(cleanText, '{font:%s*[%w_%-]+}', '')
+    cleanText = _gsub(cleanText, '{/font:}', '')
+    -- cleanText = _gsub(cleanText, '{[^}]*}', '') -- Universal cleanup of all other {any_characters} tags
+    -- cleanText = _gsub(cleanText, '<[^>]*>', '') -- HTML-like <tag></tag> tags (if used)
+    -- cleanText = _gsub(cleanText, '%s+', ' ') -- Cleanup of extra spaces
     -- cleanText = string.match(cleanText, '^%s*(.-)%s*$') or cleanText -- Trim whitespace from edges
     
     -- Save the result to the cache
@@ -882,12 +886,10 @@ end)
 -- Periodic cache clearing to save memory
 local lastCacheClean = 0
 local function CleanTextCache_Periodic()
-    if CurTime then
-        local curTime = CurTime()
-        if (curTime - lastCacheClean > 300) then -- every 5 minutes
-            cleanTextCache = {}
-            lastCacheClean = curTime
-        end
+    local curTime = _CurTime()
+    if (curTime - lastCacheClean > 300) then -- every 5 minutes
+        cleanTextCache = {}
+        lastCacheClean = curTime
     end
 end
 DHook:Add('Think', 'CleanTextCache_Periodic', CleanTextCache_Periodic)

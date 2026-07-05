@@ -1,25 +1,28 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Languages Russian
+ *   @license       MIT License
+ *   @version       1.6.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
  
 
 
 local RUSSIAN = {
-    ['basename'] = 'The DanLib Base Library',
-
     ['#modules'] = 'Модули',
     ['#modules.description'] = 'Отображает все активные модули на сервере.',
     ['#modules.version'] = 'Версия модуля: {version}',
@@ -260,8 +263,26 @@ local RUSSIAN = {
     ['#loading.languages'] = 'Загрузка языков модулей: ',
 
     ['#copied.clipboard'] = 'Скопировано в буфер обмена!',
+    
+    ['#langpage'] = 'Редактор языков',
+    ['#langpage.description'] = 'Просмотр, редактирование и экспорт переводов для всех зарегистрированных языков.',
+    ['#langpage.select'] = 'Выберите язык',
+    ['#langpage.pick'] = 'Выберите язык из панели слева, чтобы начать редактирование.',
+    ['#langpage.export'] = 'Экспорт в файл',
+    ['#langpage.search'] = 'Поиск ключей...',
+    ['#langpage.col.english'] = 'English (эталон)',
+    ['#langpage.col.translation'] = 'Перевод',
+    ['#langpage.autotranslate'] = 'Автоперевод',
+    ['#langpage.autotranslate.pick'] = 'Выберите код языка для автоперевода.',
+    ['#langpage.autotranslate.warning'] = 'Google Translate может блокировать IP сервера. Это экспериментально. Продолжить?',
+    ['#langpage.exported'] = 'Экспортировано! Файл: %s',
+    ['#langpage.wait'] = 'Перевод в процессе — подождите.',
+    ['#langpage.done'] = 'Перевод завершён!',
+    ['#langpage.error'] = 'Ошибка перевода.',
+    ['#langpage.blocked'] = 'IP сервера может быть заблокирован Google. Попробуйте позже.',
+    ['#langpage.nothing'] = 'Все ключи уже переведены.',
+    ['#langpage.noresults'] = 'Ни один ключ не совпадает с фильтром.',
 
-    ['#copyright'] = 'Авторское право (c) %s denchik',
 
     -- ['setup.description'] = '{font: danlib_font_18}{color: white} Настройки {color: green} успешно {color: Color(0, 255, 0)} сохранены. Успех на {color: Color(0, 0, 255)} {percent}{color: Color(255, 255, 255)}!'
 }

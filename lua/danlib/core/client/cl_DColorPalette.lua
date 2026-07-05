@@ -1,35 +1,37 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     UI ColorPalette
+ *   @license       MIT License
+ *   @version       1.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
-local color_Error = Color(255, 0, 255)
-local circleMaterial = DanLib.Config.Materials['vCircle']
-local matGradient = Material('vgui/gradient-u')
-local matGrid = Material('gui/alpha_grid.png', 'nocull')
-local Table = DanLib.Table
-local utils = DanLib.Utils
+local DTable = DanLib.Table
+local DUtils = DanLib.Utils
+local DCustomUtils = DanLib.CustomUtils.Create
 
-local toColor = HSVToColor
-
-local table = table
-local copy = table.Copy
-
-local string = string
+local _IsValid = IsValid
+local _ipairs = ipairs
+local _pairs = pairs
+local _tonumber = tonumber
+local _ColorToHSV = ColorToHSV
+local _HSVToColor = HSVToColor
 local fromColor = string.FromColor
 
 local math = math
@@ -40,6 +42,11 @@ local clamp = math.Clamp
 
 local input = input
 local mouseDown = input.IsMouseDown
+
+local color_Error = Color(255, 0, 255)
+local circleMaterial = DanLib.Config.Materials['vCircle']
+local matGradient = Material('vgui/gradient-u')
+local matGrid = Material('gui/alpha_grid.png', 'nocull')
 
 
 --- https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/vgui/drgbpicker.lua
@@ -97,16 +104,16 @@ function PICKER:OnMouseReleased(mcode)
 end
 
 function PICKER:Paint(w, h)
-    utils:DrawRoundedMask(10, 0, 0, w, h, function()
-        utils:DrawMaterial(2.5, 0, w - 4, h, color_white, self.Material)
+    DUtils:DrawRoundedMask(10, 0, 0, w, h, function()
+        DUtils:DrawMaterial(2.5, 0, w - 4, h, color_white, self.Material)
     end)
 
     local circleSize = 14
     local centerX = clamp((w - circleSize) / 2, 0, w - circleSize) -- Centred at X and bounded
     local centerY = clamp(self.LastY - (circleSize / 2), 0, h - circleSize) -- Y centred and constrained
     -- Change the colour of the circle when it is pressed
-    local circleColor = self.IsPressed and utils:UiColor(0, 151, 230) or color_white -- Blue if pressed, otherwise white
-    utils:DrawMaterial(centerX, centerY, circleSize, circleSize, circleColor, circleMaterial)
+    local circleColor = self.IsPressed and DUtils:UiColor(0, 151, 230) or color_white -- Blue if pressed, otherwise white
+    DUtils:DrawMaterial(centerX, centerY, circleSize, circleSize, circleColor, circleMaterial)
 end
 
 PICKER:Register('DanLib.UI.RGBPicker')
@@ -155,11 +162,11 @@ function BAR:OnChange(fAlpha) end
 
 function BAR:Paint(w, h)
 	local size = 128
-	utils:DrawRoundedMask(10, 0, 0, w, h, function()
+	DUtils:DrawRoundedMask(10, 0, 0, w, h, function()
         for i = 0, math.ceil(h / size) do
-            utils:DrawMaterial(2, i * size, w - 4, size, color_white, matGrid)
+            DUtils:DrawMaterial(2, i * size, w - 4, size, color_white, matGrid)
         end
-        utils:DrawMaterial(2.5, 0, w - 4, h, utils:UiColor(self.m_BarColor.r, self.m_BarColor.g, self.m_BarColor.b, self.m_BarColor.a), matGradient)
+        DUtils:DrawMaterial(2.5, 0, w - 4, h, DUtils:UiColor(self.m_BarColor.r, self.m_BarColor.g, self.m_BarColor.b, self.m_BarColor.a), matGradient)
     end)
 
     local lineY = (1 - self.m_Value) * h - 1
@@ -167,8 +174,8 @@ function BAR:Paint(w, h)
     local centerX = clamp((w - circleSize) / 2, 0, w - circleSize) -- Centred at X and bounded
     local centerY = clamp(lineY - (circleSize / 2), 0, h - circleSize) -- Y centred and constrained
     -- Change the colour of the circle when it is pressed
-    local circleColor = self.IsPressed and utils:UiColor(0, 151, 230) or color_white -- Blue if pressed, otherwise white
-    utils:DrawMaterial(centerX, centerY, circleSize, circleSize, circleColor, circleMaterial)
+    local circleColor = self.IsPressed and DUtils:UiColor(0, 151, 230) or color_white -- Blue if pressed, otherwise white
+    DUtils:DrawMaterial(centerX, centerY, circleSize, circleSize, circleColor, circleMaterial)
 end
 
 BAR:Register('DanLib.UI.AlphaBar')
@@ -205,13 +212,13 @@ end
 
 function CUBE:Paint(w, h)
 	-- Drawing the mask
-    utils:DrawRoundedMask(6, 0, 0, w, h, function()
-        utils:DrawRect(0, 0, w, h, utils:UiColor(self.m_BaseRGB.r, self.m_BaseRGB.g, self.m_BaseRGB.b, 255))
+    DUtils:DrawRoundedMask(6, 0, 0, w, h, function()
+        DUtils:DrawRect(0, 0, w, h, DUtils:UiColor(self.m_BaseRGB.r, self.m_BaseRGB.g, self.m_BaseRGB.b, 255))
 
         -- Draw gradients
-	    -- utils:DrawGradient(0, 0, w, h, RIGHT, Color(255, 0, 0, 255))
-	    utils:DrawGradient(0, 0, w, h, RIGHT, color_white)
-	    utils:DrawGradient(0, 0, w, h, nil, Color(0, 0, 0, 255))
+	    -- DUtils:DrawGradient(0, 0, w, h, RIGHT, Color(255, 0, 0, 255))
+	    DUtils:DrawGradient(0, 0, w, h, RIGHT, color_white)
+	    DUtils:DrawGradient(0, 0, w, h, nil, Color(0, 0, 0, 255))
     end)
 end
 
@@ -227,8 +234,8 @@ function CUBE:UpdateColor(x, y)
 
     local value = 1 - y
     local saturation = 1 - x
-    local h = ColorToHSV(self.m_BaseRGB)
-    local color = HSVToColor(h, saturation, value)
+    local h = _ColorToHSV(self.m_BaseRGB)
+    local color = _HSVToColor(h, saturation, value)
     self:SetRGB(color)
 end
 
@@ -237,8 +244,8 @@ function CUBE:OnUserChanged(color)
 end
 
 function CUBE:SetColor(color)
-	local h, s, v = ColorToHSV(color)
-	self:SetBaseRGB(HSVToColor(h, 1, 1))
+	local h, s, v = _ColorToHSV(color)
+	self:SetBaseRGB(_HSVToColor(h, 1, 1))
 	self:SetSlideY(1 - v)
 	self:SetSlideX(1 - s)
 	self:UpdateColor()
@@ -259,34 +266,34 @@ CUBE:Register('DanLib.UI.ColorCube')
 local function CreateColorTable(num_rows)
     local rows = num_rows or 8
     local index = 0
-    local ColorTable = {}
+    local ColorTable = { }
 
     -- HSV bright colors
     for i = 0, rows * 2 - 1 do
         local col = round(min(i * (360 / (rows * 2)), 359))
         index = index + 1
-        ColorTable[index] = toColor(360 - col, 1, 1)
+        ColorTable[index] = _HSVToColor(360 - col, 1, 1)
     end
 
     -- HSV dark colors
     for i = 0, rows - 1 do
         local col = round(min(i * (360 / rows), 359))
         index = index + 1
-        ColorTable[index] = toColor(360 - col, 1, 0.5)
+        ColorTable[index] = _HSVToColor(360 - col, 1, 0.5)
     end
 
     -- HSV medium saturation
     for i = 0, rows - 1 do
         local col = round(min(i * (360 / rows), 359))
         index = index + 1
-        ColorTable[index] = toColor(360 - col, 0.5, 0.5)
+        ColorTable[index] = _HSVToColor(360 - col, 0.5, 0.5)
     end
 
     -- HSV high brightness
     for i = 0, rows - 1 do
         local col = min(i * (360 / rows), 359)
         index = index + 1
-        ColorTable[index] = toColor(360 - col, 0.5, 1)
+        ColorTable[index] = _HSVToColor(360 - col, 0.5, 1)
     end
 
     -- Grayscale gradient
@@ -307,7 +314,7 @@ AccessorFunc(PALETTE, 'm_NumRows', 'NumRows', FORCE_NUMBER)
 AccessorFunc(PALETTE, 'm_formatRGB', 'FormatRGB')
 
 -- This stuff could be better
-g_ColorPalettePanels = g_ColorPalettePanels or {}
+g_ColorPalettePanels = g_ColorPalettePanels or { }
 
 function PALETTE:Init()
 	-- self:SetTall(80, 120)
@@ -317,24 +324,24 @@ function PALETTE:Init()
 	self:SetSpaceX(5)
 	self:SetSpaceY(5)
 	self:SetFormatRGB('RGB')
-	Table:Add(g_ColorPalettePanels, self)
+	DTable:Add(g_ColorPalettePanels, self)
 end
 
 -- This stuff could be better
 function PALETTE:NetworkColorChange()
-    for id, pnl in pairs(g_ColorPalettePanels) do
-        if (not IsValid(pnl)) then 
-            table.remove(g_ColorPalettePanels, id) 
+    for id, pnl in _pairs(g_ColorPalettePanels) do
+        if (not _IsValid(pnl)) then 
+            DTable:Remove(g_ColorPalettePanels, id) 
         end
     end
 
-    for id, pnl in pairs(g_ColorPalettePanels) do
-        if (not IsValid(pnl) or pnl == self) then
+    for id, pnl in _pairs(g_ColorPalettePanels) do
+        if (not _IsValid(pnl) or pnl == self) then
         	continue
         end
         
-        local tab = {}
-        for pid, p in ipairs(self:GetChildren()) do
+        local tab = { }
+        for pid, p in _ipairs(self:GetChildren()) do
             tab[p:GetID()] = p:GetColor()
         end
         pnl:SetColorButtons(tab)
@@ -351,7 +358,7 @@ end
 
 function PALETTE:PaintOver(w, h)
 	local childW = 0
-	for id, child in ipairs(self:GetChildren()) do
+	for id, child in _ipairs(self:GetChildren()) do
 		if (childW + child:GetWide() > w) then
 			break
 		end
@@ -365,14 +372,14 @@ function PALETTE:SetColorButtons(tab)
     self:Clear()
     local formatRGB = self:GetFormatRGB()
 
-    for i, color in pairs(tab or {}) do
-        local id = tonumber(i)
+    for i, color in _pairs(tab or { }) do
+        local id = _tonumber(i)
         if (not id) then
         	break
         end
         
         local size = self:GetButtonSize()
-        local button = DanLib.CustomUtils.Create(self, 'DanLib.UI.ColorButton')
+        local button = DCustomUtils(self, 'DanLib.UI.ColorButton')
         
         button:SetSize(size or 10, size or 10)
         button:SetID(i)
@@ -390,22 +397,22 @@ end
 
 function PALETTE:SetButtonSize(val)
 	self.m_buttonsize = floor(val)
-	for k, v in ipairs(self:GetChildren()) do
+	for k, v in _ipairs(self:GetChildren()) do
 		v:SetSize(self:GetButtonSize(), self:GetButtonSize())
 	end
 	self:InvalidateLayout()
 end
 
 function PALETTE:SaveColor(btn, color)
-	color = copy(color or color_Error)
+	color = DTable:Copy(color or color_Error)
 	btn:SetColor(color)
 	self:NetworkColorChange()
 end
 
 function PALETTE:SetColor(newcol)
     -- Mark selected color in palette
-    for _, child in ipairs(self:GetChildren()) do
-        if (IsValid(child) and child.GetColor) then
+    for _, child in _ipairs(self:GetChildren()) do
+        if (_IsValid(child) and child.GetColor) then
             local childCol = child:GetColor()
             if (childCol and childCol.r == newcol.r and childCol.g == newcol.g and childCol.b == newcol.b) then
                 child:SetSelected(true)

@@ -1,156 +1,148 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Cookie utils
+ *   @license       MIT License
+ *   @version       1.0.2
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *
- *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
- *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
+ *   @description   This file defines the CookieUtils library, a collection of utility functions for managing cookies
+ *                  in Garry's Mod. These functions simplify the process of setting, getting, and deleting cookies,
+ *                  as well as providing additional functionality for cookie management.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @functions
+ *                  - Delete: Removes a cookie by its key.
+ *                  - GetNumber: Retrieves a cookie value as a number, with an optional default value.
+ *                  - GetString: Retrieves a cookie value as a string, with an optional default value.
+ *                  - Set: Sets a cookie value by its key.
+ *                  - Exists: Checks if a cookie exists by its key.
+ *                  - GetAll: Returns a table containing all cookies tracked by this session.
+ *                  - ClearAll: Deletes all cookies tracked by this session.
+ *                  - SetWithTTL: Sets a cookie with a specified time-to-live (TTL) after which it will be deleted.
+ *
+ *   @example
+ *                  - To set a cookie: DanLib.CookieUtils:Set('username', 'JohnDoe')
+ *                  - To get a cookie value: local username = DanLib.CookieUtils:GetString('username', 'Guest')
+ *                  - To check if a cookie exists: if DanLib.CookieUtils:Exists('username') then ... end
+ *                  - To delete a cookie: DanLib.CookieUtils:Delete('username')
+ *                  - To clear all cookies: DanLib.CookieUtils:ClearAll()
+ *                  - To set a cookie with TTL: DanLib.CookieUtils:SetWithTTL('session', 'abc123', 300)
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
-/***
- *   cl_cookie_utils.lua
- *   This file defines the CookieUtils library, a collection of utility functions for managing cookies
- *   in Garry's Mod. These functions simplify the process of setting, getting, and deleting cookies,
- *   as well as providing additional functionality for cookie management.
- *
- *   The following methods are included:
- *   - Delete: Removes a cookie by its key.
- *   - GetNumber: Retrieves a cookie value as a number, with an optional default value.
- *   - GetString: Retrieves a cookie value as a string, with an optional default value.
- *   - Set: Sets a cookie value by its key.
- *   - Exists: Checks if a cookie exists by its key.
- *   - GetAll: Returns a table containing all cookies.
- *   - ClearAll: Deletes all cookies.
- *   - SetWithTTL: Sets a cookie with a specified time-to-live (TTL) after which it will be deleted.
- *
- *   The file is designed to facilitate cookie management in Garry's Mod, ensuring ease of use
- *   and flexibility in handling persistent data on the client side.
- *
- *   Usage example:
- *   - To set a cookie: DanLib.CookieUtils:Set('username', 'JohnDoe')
- *   - To get a cookie value: local username = DanLib.CookieUtils:GetString('username', 'Guest')
- *   - To check if a cookie exists: if DanLib.CookieUtils:Exists('username') then ... end
- *   - To delete a cookie: DanLib.CookieUtils:Delete('username')
- *   - To clear all cookies: DanLib.CookieUtils:ClearAll()
- *   - To set a cookie with TTL: DanLib.CookieUtils:SetWithTTL('session', 'abc123', 300)
- *
- *   Note: Ensure that all keys and values are of the correct type to avoid errors
- *   when managing cookies with this utility library.
- */
 
+DanLib.CookieUtils = DanLib.CookieUtils or { }
+local DCookieUtils = DanLib.CookieUtils
 
+-- Tracks keys set via this library so GetAll / ClearAll work correctly.
+-- Keys are stored as a set (keys[name] = true) to avoid duplicates.
+DCookieUtils.keys = DCookieUtils.keys or { }
 
--- Global table for cookie functions
-DanLib.CookieUtils = DanLib.CookieUtils or {}
-DanLib.CookieUtils.keys = {} -- Table for storing cookie keys
+local _tostring = tostring
+local _assert = assert
+local _pairs = pairs
+local _type = type
 
-
--- Auxiliary function for type checking
 local function validateKey(key)
-    if (type(key) ~= 'string') then
-        error('Cookie key must be a string.')
-    end
+    _assert(_type(key) == 'string', 'DanLib.CookieUtils: key must be a string')
 end
 
 local function validateValue(value)
-    if (type(value) ~= 'string' and type(value) ~= 'number') then
-        error('Cookie value must be a string or a number.')
-    end
+    _assert(_type(value) == 'string' or _type(value) == 'number', 'DanLib.CookieUtils: value must be a string or a number')
 end
-
 
 --- Deletes a cookie by key.
--- @param key string: The key of the cookie to delete.
-function DanLib.CookieUtils:Delete(key)
-    validateKey(key) -- Key verification
+-- @param key (string): The key of the cookie to delete.
+function DCookieUtils:Delete(key)
+    validateKey(key)
     cookie.Delete(key)
+    self.keys[key] = nil
 end
 
-
---- Gets the cookie value as a number with the option to specify a default value.
--- @param name: string The name of the cookie.
--- @param default any: Default value if cookie does not exist (defaults to nil).
--- @return number: The cookie value or default value.
-function DanLib.CookieUtils:GetNumber(name, default)
-    local value = cookie.GetNumber(name, default)
-    return value
+--- Retrieves a cookie value as a number.
+-- @param name (string): The name of the cookie.
+-- @param default (number|nil): Default value if the cookie does not exist.
+-- @return (number): The cookie value or the default.
+function DCookieUtils:GetNumber(name, default)
+    validateKey(name)
+    return cookie.GetNumber(name, default)
 end
 
-
---- Gets the cookie value as a string with the option to specify a default value.
--- @param name: string The name of the cookie.
--- @param default: any Default value if cookie does not exist (defaults to nil).
--- @return string: The value of the cookie or the default value.
-function DanLib.CookieUtils:GetString(name, default)
-    local value = cookie.GetString(name, default)
-    return value
+--- Retrieves a cookie value as a string.
+-- @param name (string): The name of the cookie.
+-- @param default (string|nil): Default value if the cookie does not exist.
+-- @return (string): The cookie value or the default.
+function DCookieUtils:GetString(name, default)
+    validateKey(name)
+    return cookie.GetString(name, default)
 end
 
-
---- Sets the value of the cookie.
--- @param key: string The key of the cookie.
--- @param value string: The value of the cookie.
-function DanLib.CookieUtils:Set(key, value)
-	validateKey(key) -- Key verification
-    validateValue(value) -- Value check
-
-    cookie.Set(key, value) -- Save the value as a string
-    table.insert(DanLib.CookieUtils.keys, key) -- Add a key to the table
+--- Sets a cookie value.
+-- Overwrites any existing cookie with the same key.
+-- @param key (string): The key of the cookie.
+-- @param value (string|number): The value to store.
+function DCookieUtils:Set(key, value)
+    validateKey(key)
+    validateValue(value)
+    cookie.Set(key, _tostring(value))
+    self.keys[key] = true
 end
 
-
---- Checks if a cookie with the given key exists.
--- @param key string: Key of the cookie.
--- @return boolean true if cookie exists, otherwise false.
-function DanLib.CookieUtils:Exists(key)
-	validateKey(key) -- Key verification
-    return cookie.GetString(key) ~= ''
+--- Checks whether a cookie with the given key exists.
+-- A cookie is considered to exist when its stored value is not nil.
+-- @param key (string): The key of the cookie.
+-- @return (boolean): true if the cookie exists, false otherwise.
+function DCookieUtils:Exists(key)
+    validateKey(key)
+    return cookie.GetString(key, nil) ~= nil
 end
 
-
---- Gets all cookies in the form of a table.
--- @return table: A table of all cookies.
-function DanLib.CookieUtils:GetAll()
-    local allCookies = {}
-    for key in pairs(DanLib.CookieUtils.keys) do
-        if self:Exists(key) then allCookies[key] = cookie.GetString(key) end
+--- Returns a table of all cookies tracked by this library in the current session.
+-- Only cookies set via DanLib.CookieUtils:Set / SetWithTTL are included.
+-- @return (table): A key → value string table of all tracked cookies.
+function DCookieUtils:GetAll()
+    local allCookies = { }
+    for key in _pairs(self.keys) do
+        if self:Exists(key) then
+            allCookies[key] = cookie.GetString(key)
+        end
     end
     return allCookies
 end
 
-
---- Clears all cookies.
-function DanLib.CookieUtils:ClearAll()
-    for _, key in ipairs(DanLib.CookieUtils.keys) do
-        self:Delete(key)
+--- Deletes all cookies tracked by this library in the current session.
+function DCookieUtils:ClearAll()
+    for key in _pairs(self.keys) do
+        cookie.Delete(key)
     end
-    DanLib.CookieUtils.keys = {} -- Clearing the key table
+    self.keys = { }
 end
 
+--- Sets a cookie that is automatically deleted after a given number of seconds.
+-- The key is removed from the tracking table when the TTL expires.
+-- @param key (string): The key of the cookie.
+-- @param value (string|number): The value to store.
+-- @param ttl (number): Lifetime of the cookie in seconds.
+function DCookieUtils:SetWithTTL(key, value, ttl)
+    validateKey(key)
+    validateValue(value)
+    _assert(_type(ttl) == 'number' and ttl > 0, 'DanLib.CookieUtils: ttl must be a positive number')
 
---- Sets a cookie with a lifetime value.
--- @param key string The key of the cookie.
--- @param value string Value of the cookie.
--- @param ttl number The lifetime of the cookie in seconds.
-function DanLib.CookieUtils:SetWithTTL(key, value, ttl)
-    validateKey(key) -- Key verification
-    validateValue(value) -- Value check
+    cookie.Set(key, _tostring(value))
+    self.keys[key] = true
 
-    if (type(ttl) ~= 'number') then
-        error('TTL must be a number.')
-    end
-
-    cookie.Set(key, tostring(value)) -- Save the value as a string
     timer.Simple(ttl, function()
-        self:Delete(key)
+        cookie.Delete(key)
+        DCookieUtils.keys[key] = nil
     end)
 end

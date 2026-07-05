@@ -1,17 +1,24 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Settings Page
+ *   @license       MIT License
+ *   @version       2.0.2
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
- *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
- *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
+ *   @description   Dynamic user configuration panel for DanLib framework with collapsible
+ *                  categories, multiple input types (int, string, bool, key, custom), and
+ *                  automatic saving. Provides visual interface for managing module settings
+ *                  with real-time validation and tooltips.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
@@ -20,19 +27,22 @@
 local DBase = DanLib.Func
 local DUtils = DanLib.Utils
 local DTable = DanLib.Table
-local DNetwork = DanLib.Network
+local DTimer = DanLib.Timer
+local DHook = DanLib.Hook
+local ui = DanLib.UI
 local DCustomUtils = DanLib.CustomUtils.Create
 local DMaterials = DanLib.Config.Materials
 
-local string = string
-local table = table
-local count = table.Count
+local _pairs = pairs
+local _ipairs = ipairs
+local _next = next
 
-local SETUP = DBase.CreatePage(DBase:L('#settings'))
+local SETUP = DBase.CreatePage('settings')
+SETUP:SetName(DBase:L('#settings'))
 SETUP:SetOrder(5)
 SETUP:SetIcon(DMaterials['Settings'])
+SETUP:SetID('settings')
 SETUP:SetKeyboardInput(true)
-
 
 --- Checks if the player has access to the administration pages.
 -- @param pPlayer Player|nil The player for whom access is being checked. If nil, LocalPlayer() is used.
@@ -40,7 +50,6 @@ SETUP:SetKeyboardInput(true)
 function SETUP:AccessСheck(pPlayer)
     return DBase.HasPermission(pPlayer or LocalPlayer(), 'AdminPages')
 end
-
 
 --- Creates a settings panel.
 -- @param parent Panel The parent panel to which the settings panel will be added.
@@ -51,22 +60,20 @@ function SETUP:Create(parent)
 end 
 
 
-local ui = DanLib.UI
-local SETUP, _ = DanLib.UiPanel()
-
+local SETUP = DanLib.UiPanel()
 
 --- Initializes the setup panel
 function SETUP:Init()
     self:TopHeader() -- Creating a top header
-    self.pages = {} -- Table for page storage
-    self.categoryButtons = {} -- Table for category buttons
-    self.modulesToPages = {}
+    self.pages = { } -- Table for page storage
+    self.categoryButtons = { } -- Table for category buttons
+    self.modulesToPages = { }
     self.pageIndexCounter = 0 -- Counter for unique page indexes
     self.defaultFont = 'danlib_font_18' -- Default font
 
     self.tabs = self:Add('DanLib.UI.Tabs')
     self.tabs:DockMargin(0, 8, 0, 0)
-    self.tabs.TabID = {}
+    self.tabs.TabID = { }
 
     self:PopulatePages() -- Filling pages
     self:Refresh() -- Interface update
@@ -90,13 +97,13 @@ function SETUP:TopHeader()
     -- Defining the buttons for saving and cancelling
     self.cancelButton = self:CreateButton(DBase:L('cancel'), Color(209, 53, 62), function()
         DanLib.ChangedConfig = nil
+        DHook:Run('DanLib.ConfigSaved') -- hide save notification immediately
         self:Refresh()
     end)
     self.saveButton = self:CreateButton(DBase:L('save'), Color(67, 156, 242), function()
         self:HandleSave()
     end)
 end
-
 
 --- Creates a button in the header
 -- @param name: string The name of the button
@@ -117,12 +124,11 @@ function SETUP:CreateButton(name, color, onClick)
     return Button
 end
 
-
 --- Gets a sorted configuration
 -- @return table: A sorted table of configuration items
 function SETUP:GetSortedConfig()
-    local sortedConfig = {}
-    for k, v in pairs(DanLib.ConfigMeta) do
+    local sortedConfig = { }
+    for k, v in _pairs(DanLib.ConfigMeta) do
         DTable:Add(sortedConfig, { v.SortOrder, k })
     end
     DTable:SortByMember(sortedConfig, 1, true) -- Sort by order
@@ -146,7 +152,7 @@ function SETUP:GetReset(moduleKey, key)
     -- Check the type of the returned value
     if (type(defaultValues) == 'table') then
         -- If it's a table, copy it
-        defaultValues = table.Copy(defaultValues)
+        defaultValues = DTable:Copy(defaultValues)
     elseif (type(defaultValues) == 'string') then
         -- If it's a string, leave it unchanged
         defaultValues = defaultValues
@@ -169,7 +175,7 @@ end
 --- Fills the pages with content
 function SETUP:PopulatePages()
     local sortedConfig = self:GetSortedConfig()
-    for k, config in pairs(sortedConfig) do
+    for k, config in _pairs(sortedConfig) do
         local moduleKey = config[2]
         local module = DanLib.ConfigMeta[moduleKey]
         local page = DCustomUtils(self.tabs)
@@ -185,9 +191,9 @@ function SETUP:PopulatePages()
         page:ApplyEvent('Refresh', function(sl)
             scrollPanel:Clear()
             local hasVariables = false
-            sl.variablePanels = {}
+            sl.variablePanels = { }
 
-            for key, val in pairs(module:GetSorted()) do
+            for key, val in _ipairs(module:GetSorted()) do
                 -- Set flag if variables are found
                 hasVariables = true
                 
@@ -210,9 +216,8 @@ function SETUP:PopulatePages()
         self:AddPageModule(page, k, module, moduleKey) -- Adding a page to the public list
     end
 
-    DanLib.Hook:Add('DanLib:HooksConfigUpdated', 'HooksConfigUpdated', function() self:Refresh() end)
+    DHook:Add('DanLib:HooksConfigUpdated', 'HooksConfigUpdated', function() self:Refresh() end)
 end
-
 
 --- Creates a category separator in the scrollable area
 -- @param scrollPanel: The scroll panel to add the separator to
@@ -227,7 +232,7 @@ function SETUP:CreateCategorySeparator(scrollPanel, categoryData)
         local categoryIcon = categoryData.CategoryInfo and categoryData.CategoryInfo.Icon
         local categoryName = categoryData.CategoryInfo and categoryData.Name or DBase:L('#no.data')
         
-        local textX = 8
+        local textX = 6
         local textY = h / 2
         local iconSize = 16
         local currentX = textX
@@ -237,26 +242,37 @@ function SETUP:CreateCategorySeparator(scrollPanel, categoryData)
         end
         
         -- Draw category name
-        local x = draw.SimpleText(categoryName, 'danlib_font_18', currentX, textY, categoryColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        DUtils:DrawRoundedBox(x + currentX + 8, h / 2, w, 4, DBase:Theme('secondary'))
+        draw.SimpleText(categoryName, 'danlib_font_18', currentX, textY, categoryColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end)
 end
 
-
 --- Creates a variable panel in the scrollable area
 -- @param pages: The scroll panel to add the variable to
--- @param val table: The variable configuration
--- @param moduleKey string: The key for the module
--- @param module table: The module object
--- @param sl table: Reference to the current setup object
+-- @param val (table): The variable configuration
+-- @param moduleKey (string): The key for the module
+-- @param module (table): The module object
+-- @param sl (table): Reference to the current setup object
 function SETUP:CreateVariablePanel(pages, val, moduleKey, module, sl)
     local headerH = 50
     local customElement = val.Type == DanLib.Type.Table and val.VguiElement
-    local variablePanel = DCustomUtils(pages)
-    variablePanel:PinMargin(TOP, nil, nil, 4, 8)
+
+    -- Wrapper: the only panel pinned to the scroll.
+    -- Its height grows/shrinks; internal controls never see the resize.
+    local wrapper = DCustomUtils(pages)
+    wrapper:PinMargin(TOP, nil, nil, 4, 8)
+    wrapper:SetTall(headerH)
+
+    -- Row panel: always headerH (50px). All controls live here.
+    local variablePanel = DCustomUtils(wrapper)
+    variablePanel:Dock(TOP)
     variablePanel:SetTall(headerH)
+    variablePanel.hasError = false
     variablePanel:ApplyEvent(nil, function(sl, w, h)
-        DUtils:DrawRoundedBox(0, 0, w, h, DBase:Theme('secondary', 150))
+        if sl.hasError then
+            DUtils:DrawRoundedTopBox(0, 0, w, h, DBase:Theme('secondary', 150))
+        else
+            DUtils:DrawRoundedBox(0, 0, w, h, DBase:Theme('secondary', 150))
+        end
         sl:ApplyAlpha(false, 0, 0.5, false, sl.undercolor, 255, 0.5)
         DUtils:DrawRoundedBox(0, 0, w, h, Color(46, 62, 82, sl.alpha))
 
@@ -291,23 +307,78 @@ function SETUP:CreateVariablePanel(pages, val, moduleKey, module, sl)
         end)
     end
 
+    -- Error strip: child of wrapper, below the row.
+    -- Height changes instantly (no gap/jitter); alpha fades via DanLib ApplyLerpFade.
+    local errorPanel = DCustomUtils(wrapper)
+    errorPanel:Dock(TOP)
+    errorPanel:SetTall(0)
+    errorPanel:SetAlpha(0)
+    errorPanel._errorText = nil
+    errorPanel._lastError = ''
+    errorPanel:ApplyEvent(nil, function(sl, w, h)
+        if (h < 1) then
+            return
+        end
+        DUtils:DrawRoundedBottomBox(0, 0, w, h, DBase:GetColor('Red', 20))
+        draw.SimpleText((sl._errorText or sl._lastError), 'danlib_font_14', 10, h * 0.5, DBase:GetColor('Red'), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    end)
+
+    variablePanel._ep = errorPanel
+    variablePanel._wrapper = wrapper
+    function variablePanel:ShowValidationError(msg)
+        local ep, wr = self._ep, self._wrapper
+        ep:ApplyEndAnimations()
+        if msg then
+            ep._lastError = msg
+            ep._errorText = msg
+            self.hasError = true
+            -- Expand instantly, then fade in text
+            ep:SetTall(22)
+            wr:SetTall(headerH + 22)
+            ep:ApplyLerpFade(0.2, ep:GetAlpha(), 255)
+        else
+            ep._errorText = nil
+            self.hasError = false
+            ep:SetTall(0)
+            wr:SetTall(headerH)
+        end
+    end
+
     -- Adding functionality depending on the type of variable
     self:AddVariableFunctionality(variablePanel, customElement, val, moduleKey, module, sl)
 end
 
-
 --- Adds functionality to a variable panel DBased on its type
--- @param variablePanel Panel: The variable panel to add functionality to
--- @param customElement string: The custom element type (if any)
--- @param val table: The variable configuration
--- @param moduleKey string: The key for the module
--- @param module table: The module object
--- @param sl table: Reference to the current setup object
+-- @param variablePanel (Panel): The variable panel to add functionality to
+-- @param customElement (string): The custom element type (if any)
+-- @param val (table): The variable configuration
+-- @param moduleKey (string): The key for the module
+-- @param module (table): The module object
+-- @param sl (table): Reference to the current setup object
 function SETUP:AddVariableFunctionality(variablePanel, customElement, val, moduleKey, module, sl)
     local wide, margiMoveToRight, margin = 200, 15, (variablePanel:GetTall() - 30) * 0.5 -- indentation
     sl.variablePanels[val.Key] = variablePanel
 
-    self:CreateResetButton(variablePanel, moduleKey, val.Key)
+    -- Per-panel refresher: updates only this control to the effective staged/saved value
+    variablePanel.RefreshValue = function(sl)
+        local control = sl.inputControl
+        if not (control and ui:valid(control)) then
+            return
+        end
+
+        local newVal = DBase:GetEffectiveConfigValue(moduleKey, val.Key)
+        local savedOnChange = control.OnChange
+        control.OnChange = nil
+        if control.SetValue then
+            control:SetValue(newVal)
+        end
+        control.OnChange = savedOnChange
+    end
+
+    -- Frozen options are read-only: hide reset and action controls
+    if (not val.Frozen) then
+        self:CreateResetButton(variablePanel, moduleKey, val.Key)
+    end
 
     -- Processing different types of variables
     if (customElement or val.GetOptions) then
@@ -320,11 +391,14 @@ function SETUP:AddVariableFunctionality(variablePanel, customElement, val, modul
             comboSelect:SetWide(wide)
             comboSelect:SetValue(module:GetValue(val.Key))
             local currentValue = module:GetValue(val.Key)
-            for k, v in pairs(options) do
+            for k, v in _pairs(options) do
                 comboSelect:AddChoice(v, k, currentValue == k)
             end
             comboSelect:ApplyEvent('OnSelect', function(_, index, value, data)
-                print(moduleKey, val.Key, data)
+                if val.Validation then
+                    local _vok, _vreason = val.Validation(data)
+                    variablePanel:ShowValidationError((not _vok) and (_vreason or 'Invalid value') or nil)
+                end
                 DBase:SetConfigVariable(moduleKey, val.Key, data)
             end)
         else
@@ -334,7 +408,11 @@ function SETUP:AddVariableFunctionality(variablePanel, customElement, val, modul
                 icon = { DMaterials['Edit'] },
                 tooltip = { DBase:L('#edit'), nil, nil, TOP },
                 click = function(sl)
-                    if ui:valid(sl.con) then sl.con:Remove() return end
+                    if ui:valid(sl.con) then
+                        sl.con:Remove()
+                        return
+                    end
+
                     local Container = DCustomUtils(nil, val.VguiElement)
                     sl.con = Container
                     Container:FillPanel()
@@ -346,48 +424,81 @@ function SETUP:AddVariableFunctionality(variablePanel, customElement, val, modul
         numberWang:PinMargin(RIGHT, nil, margin, margiMoveToRight, margin)
         numberWang:SetWide(wide)
         numberWang:SetHighlightColor(DBase:Theme('secondary', 50))
-        numberWang:SetValue(module:GetValue(val.Key))
+        numberWang:SetValue(DBase:GetEffectiveConfigValue(moduleKey, val.Key))
         numberWang:DisableShadows()
+        variablePanel.inputControl = numberWang
 
         -- Set the minimum and maximum values, if specified
         if (val.MinValue ~= nil and val.MaxValue ~= nil) then
             numberWang:SetMinMax(val.MinValue, val.MaxValue)
         end
 
-        numberWang:ApplyEvent('OnChange', function()
-            DBase:SetConfigVariable(moduleKey, val.Key, numberWang:GetValue())
-        end)
+        if val.Frozen then
+            numberWang:SetEnabled(false)
+            numberWang:SetCursor('no')
+        else
+            numberWang:ApplyEvent('OnChange', function()
+                local newVal = numberWang:GetValue()
+                if val.Validation then
+                    local _vok, _vreason = val.Validation(newVal)
+                    variablePanel:ShowValidationError((not _vok) and (_vreason or 'Invalid value') or nil)
+                end
+                DBase:SetConfigVariable(moduleKey, val.Key, newVal)
+            end)
+        end
     elseif (val.Type == DanLib.Type.String) then
         local textEntry = DBase.CreateTextEntry(variablePanel)
         textEntry:PinMargin(RIGHT, nil, margin, margiMoveToRight, margin)
         textEntry:SetWide(wide)
         textEntry:SetHighlightColor(DBase:Theme('secondary', 50))
-        textEntry:SetValue(module:GetValue(val.Key) or '')
+        textEntry:SetValue(DBase:GetEffectiveConfigValue(moduleKey, val.Key) or '')
         textEntry:DisableShadows()
-        textEntry:ApplyEvent('OnChange', function()
-            DBase:SetConfigVariable(moduleKey, val.Key, textEntry:GetValue())
-        end)
+        variablePanel.inputControl = textEntry
+
+        if val.Frozen then
+            textEntry:SetEnabled(false)
+            textEntry:SetCursor('no')
+        else
+            textEntry:ApplyEvent('OnChange', function()
+                local newVal = textEntry:GetValue()
+                if val.Validation then
+                    local _vok, _vreason = val.Validation(newVal)
+                    variablePanel:ShowValidationError((not _vok) and (_vreason or 'Invalid value') or nil)
+                end
+                DBase:SetConfigVariable(moduleKey, val.Key, newVal)
+            end)
+        end
     elseif (val.Type == DanLib.Type.Bool) then
         local CheckBox = DBase.CreateCheckbox(variablePanel)
         CheckBox:PinMargin(RIGHT, nil, margin, margiMoveToRight, margin)
         CheckBox:SetWide(32)
-        CheckBox:SetValue(module:GetValue(val.Key))
+        CheckBox:SetValue(DBase:GetEffectiveConfigValue(moduleKey, val.Key))
         CheckBox:DisableShadows()
-        CheckBox:ApplyEvent('OnChange', function(_, value)
-            DBase:SetConfigVariable(moduleKey, val.Key, value)
-        end)
+        variablePanel.inputControl = CheckBox
+
+        if val.Frozen then
+            CheckBox:SetEnabled(false)
+            CheckBox:SetCursor('no')
+        else
+            CheckBox:ApplyEvent('OnChange', function(_, value)
+                if val.Validation then
+                    local _vok, _vreason = val.Validation(value)
+                    variablePanel:ShowValidationError((not _vok) and (_vreason or 'Invalid value') or nil)
+                end
+                DBase:SetConfigVariable(moduleKey, val.Key, value)
+            end)
+        end
     end
 
-    -- Checking if there is an action
-    if val.Action then
+    -- Checking if there is an action (skipped for frozen options)
+    if val.Action and not val.Frozen then
         self:CreateActionButton(variablePanel, val)
     end
 end
 
-
 --- Creates an action button for a variable panel
--- @param variablePanel Panel: The variable panel to add the action button to
--- @param val table: The variable configuration
+-- @param variablePanel (Panel): The variable panel to add the action button to
+-- @param val (table): The variable configuration
 function SETUP:CreateActionButton(variablePanel, val)
     DBase.CreateUIButton(variablePanel, {
         dock_indent = { RIGHT, nil, 10, 15 - 4, 10 },
@@ -404,7 +515,6 @@ function SETUP:CreateActionButton(variablePanel, val)
     })
 end
 
-
 function SETUP:CreateResetButton(variablePanel, moduleKey, Key)
     DBase.CreateUIButton(variablePanel, {
         dock_indent = { RIGHT, nil, 10, 15 - 4, 10 },
@@ -413,23 +523,22 @@ function SETUP:CreateResetButton(variablePanel, moduleKey, Key)
         tooltip = { DBase:L('#resetting.changes'), nil, nil, TOP },
         click = function()
             self:GetReset(moduleKey, Key)
+            variablePanel:RefreshValue()
         end
     })
 end
 
-
 --- Updates the interface by refreshing all pages
 function SETUP:Refresh()
-    for _, page in pairs(self.pages) do
+    for _, page in _pairs(self.pages) do
         page:Refresh()
     end
 end
 
-
 --- Adds a page to the setup
 -- @param panel Panel: The panel to add as a page
--- @param id string: The ID of the page
--- @param configMeta table: The metadata for the configuration
+-- @param id (string): The ID of the page
+-- @param configMeta (table): The metadata for the configuration
 function SETUP:AddPageModule(panel, id, configMeta, moduleKey)
     panel.ID = id
 
@@ -442,11 +551,10 @@ function SETUP:AddPageModule(panel, id, configMeta, moduleKey)
     tab.TabID[id] = c
 end
 
-
 --- Gets the page index and page name by module key.
 -- The function looks for the page index in the modulesToPages table by the passed module key and returns the page name and index.
 -- If no index is found, returns nil.
--- @param moduleKey string The module key of the module for which you want to get the page index.
+-- @param moduleKey (string): The module key of the module for which you want to get the page index.
 -- @return string|nil Page name if index is found, otherwise nil.
 -- @return number|nil The page index if the index is found, otherwise nil.
 function SETUP:GetModuleAndPageIndex(moduleKey)
@@ -456,12 +564,11 @@ function SETUP:GetModuleAndPageIndex(moduleKey)
     return pageName, pageIndex
 end
 
-
 --- Opens a page by its ID
--- @param id string: The ID of the page to open
+-- @param id (string): The ID of the page to open
 -- @return Panel|nil The opened page or nil if not found
 function SETUP:ScrollPageByID(id)
-    for k, v in ipairs(self.pages) do
+    for k, v in _ipairs(self.pages) do
         if ((v.ID or '') == id) then
             self.tabs:SetActive(k)
             return v
@@ -469,10 +576,9 @@ function SETUP:ScrollPageByID(id)
     end
 end
 
-
 --- Go to the page with the change
--- @param index number: Page index for the transition
--- @param key string: Change key for selection
+-- @param index (number): Page index for the transition
+-- @param key (string): Change key for selection
 function SETUP:GotoOnPage(index, key)
     local page = self:ScrollPageByID(index)
     if (not ui:valid(page)) then
@@ -484,17 +590,17 @@ function SETUP:GotoOnPage(index, key)
         return
     end
 
-    DBase:TimerSimple(nil, function() 
+    DTimer:Simple(nil, function() 
         page.scrollPanel:ScrollToChild(variablePanel) 
     end)
 
-    DBase:TimerSimple(1.2, function()
+    DTimer:Simple(1.2, function()
         if (not ui:valid(variablePanel)) then
             return
         end
         variablePanel.undercolor = true
 
-        DBase:TimerSimple(1, function()
+        DTimer:Simple(1, function()
             if (not ui:valid(variablePanel)) then
                 return
             end
@@ -503,33 +609,45 @@ function SETUP:GotoOnPage(index, key)
     end)
 end
 
-
 --- Handles saving the configuration changes
 function SETUP:HandleSave()
     if (not DanLib.ChangedConfig or DTable:Count(DanLib.ChangedConfig) <= 0) then
         return
     end
 
-    DNetwork:Start('DanLib:RequestSaveConfigChanges')
-    DNetwork:WriteUInt(DTable:Count(DanLib.ChangedConfig), 5)
+    local msg = DanLib.Net:Open('DanLib:RequestSaveConfigChanges')
+    msg:UInt(DTable:Count(DanLib.ChangedConfig), 8)
 
-    for k, v in pairs(DanLib.ChangedConfig) do
-        DNetwork:WriteString(k)
-        DNetwork:WriteUInt(DTable:Count(v), 5)
+    for k, v in _pairs(DanLib.ChangedConfig) do
+        msg:Str(k)
+        msg:UInt(DTable:Count(v), 8)
 
-        for key, val in pairs(v) do
-            DNetwork:WriteString(key)
+        for key, val in _pairs(v) do
+            msg:Str(key)
             local variableType = DBase.GetConfigType(k, key)
+            -- Send type on wire so server can safely consume the value
+            -- even when it doesn't recognise the variable in its ConfigMeta.
+            msg:Str(variableType or '')
             DBase.ProcessTypeValue(variableType, val, true)
         end
     end
 
-    DNetwork:SendToServer()
+    msg:Up()
+
+    -- Apply changes to local CONFIG immediately so UI shows correct values
+    -- without waiting for the server's SendConfigUpdate response.
+    for moduleKey, moduleData in _pairs(DanLib.ChangedConfig) do
+        DanLib.CONFIG[moduleKey] = DanLib.CONFIG[moduleKey] or { }
+        for variable, value in _pairs(moduleData) do
+            DanLib.CONFIG[moduleKey][variable] = value
+        end
+    end
+
     DanLib.ChangedConfig = nil
+    DHook:Run('DanLib.ConfigSaved') -- hide save notification immediately
     self:Refresh()
     DBase:TutorialSequence(5, 1)
 end
-
 
 --- Checks for unsaved changes and navigates to the appropriate page.
 -- If there are unsaved changes, the function retrieves the first change key and determines which page to jump to.
@@ -539,8 +657,8 @@ function SETUP:CheckForUnsavedChanges()
     local hasChanges = DanLib.ChangedConfig and DTable:Count(DanLib.ChangedConfig) > 0
     if hasChanges then
         -- Get the first unsaved setting
-        local firstKey, firstChange = next(DanLib.ChangedConfig)
-        local variableKey = next(firstChange) -- Get the change key
+        local firstKey, firstChange = _next(DanLib.ChangedConfig)
+        local variableKey = _next(firstChange) -- Get the change key
         local pageName, pageIndex = self:GetModuleAndPageIndex(firstKey)
 
         -- Check if the page index is found
@@ -549,7 +667,6 @@ function SETUP:CheckForUnsavedChanges()
         end
     end
 end
-
 
 --- Think function to check for changes and update button states
 function SETUP:Think()

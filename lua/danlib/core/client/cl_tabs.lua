@@ -1,17 +1,21 @@
 /***
  *   @addon         DanLib
- *   @component     DanLib.UI.Tabs
- *   @version       1.1.0
+ *   @component     UI Tabs
+ *   @license       MIT License
+ *   @version       1.1.1
  *   @release_date  26/11/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   High-performance tabbed interface component with smooth animations,
  *                  animated indicator line, event system, and optimized rendering.
  *
- *   @features      - Animated indicator line that smoothly follows active tab
+ *   @functions     
+ *                  - Animated indicator line that smoothly follows active tab
  *                  - Event system (OnTabChanged, OnBeforeTabChange, OnLockedTabClick)
  *                  - Hybrid tab locking (by index, name, or reference)
  *                  - Optimized Paint with Color object reusing (-30% GC)
@@ -20,21 +24,16 @@
  *                  - Cached theme colors and pre-calculated positions
  *                  - Numeric for loops instead of pairs() (-15% iteration cost)
  *
- *   @performance   - 60-70% improved rendering vs 1.0.8
- *                  - Zero performance loss from new features
- *                  - Minimal garbage collection through object reuse
- *                  - Cached panel dimensions
- *                  - Early exit conditions
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
  *
- *   @compatibility DanLib 3.0.0+ | GMod 2024+
- *   @license       MIT License
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
 local DBase = DanLib.Func
 local DUtils = DanLib.Utils
-local DTheme = DanLib.Config.Theme
 local DCustomUtils = DanLib.CustomUtils.Create
 
 -- Performance: Localize globals
@@ -232,9 +231,9 @@ function TABS:AddTab(parent, text, docs, icon, activeColor, wide)
             local badgeY = 7
             
             -- Badge background
-            _drawRoundedBox(10, badgeX, badgeY, badgeW, badgeH, DTheme['Red'])
+            _drawRoundedBox(10, badgeX, badgeY, badgeW, badgeH, DBase:GetColor('Red'))
             -- Badge text
-            _drawSimpleText(badgeText, 'danlib_font_14', badgeX + badgeW / 2, badgeY + badgeH / 2, DTheme['White'], TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            _drawSimpleText(badgeText, 'danlib_font_14', badgeX + badgeW / 2, badgeY + badgeH / 2, DBase:GetColor('White'), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
     end)
     
@@ -506,7 +505,7 @@ function TABS:SetActive(tabIndex)
         self:SelectTab(1)
     end
     
-    DBase:TimerSimple(self.animSpeed, function()
+    DanLib.Timer:Simple(self.animSpeed, function()
         if _IsValid(self) then
             self:SelectTab(tabIndex)
         end

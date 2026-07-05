@@ -1,25 +1,28 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Languages English
+ *   @license       MIT License
+ *   @version       1.6.5
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
  
 
 
 local ENGLISH = {
-    ['basename'] = 'The DanLib Base Library',
-
     ['#modules'] = 'Modules',
     ['#modules.description'] = 'Displays all active modules on the server.',
     ['#modules.version'] = 'Module version: {version}',
@@ -121,8 +124,50 @@ local ENGLISH = {
     ['description'] = 'Description',
     ['version'] = 'Version',
 
-    ['#configSave'] = 'CONFIG SAVE',
-    ['configSaved'] = 'All changes have been saved in config!',
+    ['#config.saved'] = 'CONFIG SAVE',
+    ['#config.all.saved'] = 'All changes have been saved in config!',
+    ['#config.save.success'] = 'Configuration saved successfully!\n\nModules saved: {score}\nVariables changed: {score2}\n\nChanges have been applied and broadcasted to all players.',
+    ['#config.save.success.simple'] = 'Successfully saved %d module(s)',
+    ['#config.save.failed.simple'] = 'Failed to save %s: %s',
+    ['#config.save.failed'] = 'Save Failed',
+    ['#config.save.rollback'] = 'Configuration save failed!\n\nFailed Module: {module}\nError: {record}\n\nSuccessfully wrote: {writes}/{received} modules\nChanges rolled back: {score} variables\n\nAll changes have been reverted to previous state.',
+
+    -- Debug messages
+    ['#config.debug.validator.registered'] = 'Registered validator for {module}.{variable}',
+    ['#config.debug.validator.unknown'] = 'Unknown variable: {module}.{variable}',
+    ['#config.debug.validator.failed'] = 'Validation failed for {module}.{variable}: {errorMsg}',
+
+    ['#config.debug.file.serialize.failed'] = 'Failed to serialize config data for module: {moduleKey}',
+    ['#config.debug.file.write.failed'] = 'File write failed for module: {moduleKey}',
+    ['#config.debug.file.verify.failed'] = 'File write verification failed for module: {moduleKey}',
+    ['#config.debug.file.write.success'] = 'Successfully wrote config file: {moduleKey}',
+
+    ['#config.debug.dir.created'] = 'Created config directory',
+    ['#config.debug.change.log'] = '[{time}] {name} ({id}) changed {module}.{variable}: {old} → (new)',
+
+    ['#config.debug.network.update.sent'] = 'Sent config update to {players} player(s)',
+    ['#config.debug.network.send.invalid'] = 'Attempted to send config to invalid player',
+    ['#config.debug.network.complete.sent'] = 'Sent complete config to {name}',
+
+    ['#config.debug.save.invalid.player'] = 'Invalid player in HandleConfigSave',
+    ['#config.debug.save.no.permission'] = '{name} attempted to save config without permission',
+    ['#config.debug.save.initiated'] = '{name} initiated config save',
+    ['#config.debug.save.receiving'] = 'Receiving {score} module(s) from {name}',
+    ['#config.debug.save.invalid.module'] = '{name} tried to save invalid module: {key}',
+    ['#config.debug.save.backup.created'] = 'Created config backup for transaction',
+
+    ['#config.error.module.notfound'] = 'Module "{key}" does not exist in configuration',
+
+    ['#config.error.value.invalid'] = 'Invalid value for "{key}.{variable}"\n\nReason: {validation}\n\nValue: {value}\nType: {type}',
+    ['#config.error.variable.notfound'] = 'Variable "{key}.{variable}" does not exist.\n\nModule: {key2}\nVariable: {variable2}\n\nPlease check your configuration metadata.',
+    ['#config.error.validation.unknown'] = 'Unknown validation error',
+
+    ['#config.debug.save.changes.applied'] = 'Applied {score} changes to memory',
+    ['#config.debug.save.rollback'] = 'ROLLBACK: {name} - Module: {module}, Error: {record}, Rolled back {score} changes',
+    ['#config.debug.save.success'] = '{name} successfully saved {score} module(s) with {score2} total changes',
+
+    -- Error messages - File operations
+    ['#config.error.unknown'] = 'Unknown error',
 
     ['SysDebugMode'] = 'The server is in system debugging mode. Something may be unstable!',
 
@@ -260,7 +305,26 @@ local ENGLISH = {
     ['#loading.languages'] = 'Loading module languages: ',
 
     ['#copied.clipboard'] = 'Copied to the clipboard!',
-
     ['#copyright'] = 'Copyright (c) %s denchik',
+    
+    ['#langpage'] = 'Language Editor',
+    ['#langpage.description'] = 'View, edit and export translations for all registered languages.',
+    ['#langpage.select'] = 'Select language',
+    ['#langpage.pick'] = 'Pick a language from the sidebar to start editing.',
+    ['#langpage.export'] = 'Export to file',
+    ['#langpage.search'] = 'Search keys...',
+    ['#langpage.col.english'] = 'English (reference)',
+    ['#langpage.col.translation'] = 'Translation',
+    ['#langpage.autotranslate'] = 'Auto-translate',
+    ['#langpage.autotranslate.pick'] = 'Select a target language code for auto-translation.',
+    ['#langpage.autotranslate.warning'] = 'Google Translate may block server IPs. This is experimental and may stop mid-way. Continue?',
+    ['#langpage.exported'] = 'Exported! File: %s',
+    ['#langpage.wait'] = 'Translation in progress — please wait.',
+    ['#langpage.done'] = 'Translation complete!',
+    ['#langpage.error'] = 'Translation failed.',
+    ['#langpage.blocked'] = 'Server IP may be blocked by Google. Try again later.',
+    ['#langpage.nothing'] = 'All keys are already translated.',
+    ['#langpage.noresults'] = 'No keys match the search filter.',
+
 }
 DanLib.Func.RegisterLanguage('English', ENGLISH)

@@ -1,17 +1,22 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     UI Frame & PopupBasis
+ *   @license       MIT License
+ *   @version       2.0.12
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
@@ -21,6 +26,9 @@ local DBase = DanLib.Func
 local FRAME = DanLib.UiPanel()
 local DUtils = DanLib.Utils
 local DUI = DanLib.UI
+local DHook = DanLib.Hook
+local DTable = DanLib.Table
+local DTimer = DanLib.Timer
 local DCustomUtils = DanLib.CustomUtils.Create
 
 -- Localized functions for performance
@@ -34,9 +42,7 @@ local _ScrW = ScrW
 local _ScrH = ScrH
 local _pairs = pairs
 local _SysTime = SysTime
-local _timerSimple = timer.Simple
-local _hookAdd = hook.Add
-local _hookRemove = hook.Remove
+local _tostring = tostring
 local _vguiCursorVisible = vgui.CursorVisible
 local _guiEnableScreenClicker = gui.EnableScreenClicker
 local _inputIsKeyDown = input.IsKeyDown
@@ -48,8 +54,6 @@ local _TEXT_ALIGN_RIGHT = TEXT_ALIGN_RIGHT
 local _TEXT_ALIGN_CENTER = TEXT_ALIGN_CENTER
 local _TEXT_ALIGN_BOTTOM = TEXT_ALIGN_BOTTOM
 
-DanLib.Frames = {}
-
 --- Sets a callback function to be called when the frame is closed.
 -- @param func (function): Callback function to execute on close.
 function FRAME:SetOnCloseFunc(func)
@@ -60,7 +64,9 @@ end
 -- If removeOnClose is true, the frame is removed after animation.
 -- Otherwise, the frame is hidden.
 function FRAME:CloseFrame()
-    if self.onCloseFunc then self.onCloseFunc() end
+    if self.onCloseFunc then
+        self.onCloseFunc()
+    end
 
     if self.removeOnClose then
         self:SetAlpha(255)
@@ -102,16 +108,16 @@ function FRAME:Init()
     self.top:SetCursor('arrow')
     self.top:ApplyBackground(DBase:Theme('secondary'), 6, { true, true, false, false })
 
-    -- Localized variables for closure
+    -- Localized variable for closure
     local top = self.top
-    local scrW = _ScrW()
-    local scrH = _ScrH()
     
     --- Starts dragging the window when top panel is clicked.
     -- Validates cursor is within screen bounds before starting.
     local function startDragging()
         local mousex = _guiMouseX()
         local mousey = _guiMouseY()
+        local scrW = _ScrW()
+        local scrH = _ScrH()
         
         if (mousex < 0 or mousex > scrW or mousey < 0 or mousey > scrH) then
             return
@@ -160,6 +166,8 @@ function FRAME:Init()
             local mousey = _guiMouseY()
             
             -- Stop dragging if cursor leaves screen
+            local scrW = _ScrW()
+            local scrH = _ScrH()
             if (mousex < 0 or mousex > scrW or mousey < 0 or mousey > scrH) then
                 sl.DraggingWindow = nil
                 top:SetCursor('arrow')
@@ -224,7 +232,7 @@ function FRAME:Transparency()
     -- Internal state tracking
     local topInputEnabled = true
     local top = self.top
-    local hookName = 'DanLib.TransparencyFrame.' .. self:GetName()
+    local hookName = 'DanLib.TransparencyFrame.' .. _tostring(self)
     local hookShouldRun = false
     
     --- Sets mouse and keyboard input for top panel children.
@@ -260,17 +268,17 @@ function FRAME:Transparency()
             self.IsPopup = false
             
             -- Force hide cursor
-            _timerSimple(0.05, function()
-                if _IsValid(self) and self.IsTransparent then
+            DTimer:Simple(0.05, function()
+                if (_IsValid(self) and self.IsTransparent) then
                     _guiEnableScreenClicker(false)
                 end
             end)
             
             hookShouldRun = true
             -- Think hook for smart cursor management
-            _hookAdd('Think', hookName, function()
+            DHook:Add('Think', hookName, function()
                 if (not _IsValid(self) or not self.IsTransparent or not hookShouldRun) then
-                    _hookRemove('Think', hookName)
+                    DHook:Remove('Think', hookName)
                     return
                 end
                 
@@ -299,7 +307,7 @@ function FRAME:Transparency()
             self:AlphaTo(255, 0.2)
             
             hookShouldRun = false
-            _hookRemove('Think', hookName)
+            DHook:Remove('Think', hookName)
             
             top:SetMouseInputEnabled(true)
             top:SetKeyboardInputEnabled(true)
@@ -332,7 +340,9 @@ function FRAME:Transparency()
     local KEY_H_CACHE = KEY_H
     
     self.Think = function(sl)
-        if originalThink then originalThink(sl) end
+        if originalThink then
+            originalThink(sl)
+        end
         
         if (sl.IsTransparent ~= nil) then
             local altPressed = _inputIsKeyDown(KEY_LALT_CACHE) or _inputIsKeyDown(KEY_RALT_CACHE)
@@ -350,8 +360,10 @@ function FRAME:Transparency()
     local originalOnRemove = self.OnRemove
     self.OnRemove = function(pnl)
         hookShouldRun = false
-        _hookRemove('Think', hookName)
-        if originalOnRemove then originalOnRemove(pnl) end
+        DHook:Remove('Think', hookName)
+        if originalOnRemove then
+            originalOnRemove(pnl)
+        end
     end
     
     self.IsTransparent = false
@@ -641,6 +653,32 @@ function BASIS:Init()
     mainPanel.targetH = top:GetTall()
     mainPanel:SetTall(mainPanel.targetH)
     self.startTime = _SysTime()
+    self.blurStartTime = self.startTime
+
+    -- Track open popups so only the topmost one draws the blur overlay.
+    -- When the top popup closes, the new top gets a fresh blurStartTime
+    -- so Derma_DrawBackgroundBlur fades in smoothly.
+    DanLib._popupStack = DanLib._popupStack or { }
+    DTable:Add(DanLib._popupStack, self)
+    local _origOnRemove = self.OnRemove
+    self.OnRemove = function(pnl)
+        if _origOnRemove then
+            _origOnRemove(pnl)
+        end
+        
+        local stack = DanLib._popupStack
+        for i = #stack, 1, -1 do
+            if (stack[i] == pnl) then
+                DTable:Remove(stack, i)
+                break
+            end
+        end
+        -- Give the newly exposed popup a fresh blur start so it fades in
+        local newTop = stack[#stack]
+        if newTop and _IsValid(newTop) then
+            newTop.blurStartTime = _SysTime()
+        end
+    end
 end
 
 --- Closes the popup with fade and size animations.
@@ -650,6 +688,7 @@ function BASIS:Close()
     if self.OnClose then
         self:OnClose()
     end
+
     self:AlphaTo(0, 0.2)
     self.mainPanel:SizeTo(self.mainPanel:GetWide(), 0, 0.2, 0, -1, function()
         self:Remove()
@@ -773,10 +812,14 @@ function BASIS:OnChildAdded(panel)
 end
 
 --- Draws the background blur effect.
+-- Only the topmost popup draws the blur; others stay transparent.
 -- @param w (number): Panel width in pixels.
 -- @param h (number): Panel height in pixels.
 function BASIS:Paint(w, h)
-    Derma_DrawBackgroundBlur(self, self.startTime)
+    local stack = DanLib._popupStack
+    if stack and stack[#stack] == self then
+        Derma_DrawBackgroundBlur(self, self.blurStartTime or self.startTime)
+    end
 end
 
 BASIS:SetBase('DFrame')

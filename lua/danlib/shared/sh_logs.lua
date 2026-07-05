@@ -1,50 +1,49 @@
 /***
  *   @addon         DanLib
- *   @version       2.0.0
- *   @release_date  01/12/2025
- *   @author        denchik
- *   
- *   @description   Enhanced Discord logging system with queue, batch, and retry mechanisms
+ *   @component     Module Logs
  *   @license       MIT License
- */
-
-
-/***
- *   sh_logs.lua
- *   This file contains utility functions and structures for managing logs within the DanLib project.
+ *   @version       2.0.1
+ *   @release_date  01/12/2025
+ *   @author        denchik, CastleKeeper
  *
- *   The following functions and methods are included:
- *   - CreateLogs: Creates a new log object with a specified ID.
- *   - Register: Registers the current log in the global logs table.
- *   - SetTitle: Sets the title of the log.
- *   - SetDescription: Sets the description of the log.
- *   - SetColor: Sets the color of the log.
- *   - SetSort: Sets the sort order of the log.
- *   - SetSetup: Sets the setup function for the log.
- *   - LoadLogs: Loads all log files from the specified directory.
+ *   @contact       
+ *                  Discord: denchik_gm
+ *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
+ *                  GitHub: https://github.com/denchik5133
+ *   
+ *   @description   Enhanced Discord logging system with queue, batch, and retry mechanisms.
+ *					This file is designed to facilitate log management tasks, allowing for easy organization
+ *   				and tracking of events and information in the game environment.
  *
- *   This file is designed to facilitate log management tasks, allowing for easy organization
- *   and tracking of events and information in the game environment.
+ *   @functions
+ *   				- CreateLogs: Creates a new log object with a specified ID.
+ *   				- Register: Registers the current log in the global logs table.
+ *   				- SetTitle: Sets the title of the log.
+ *   				- SetDescription: Sets the description of the log.
+ *   				- SetColor: Sets the color of the log.
+ *   				- SetSort: Sets the sort order of the log.
+ *   				- SetSetup: Sets the setup function for the log.
+ *   				- LoadLogs: Loads all log files from the specified directory.
  *
- *   Usage example:
- *   - To create a new log:
- *     local myLog = DanLib.Func.CreateLogs('my_custom_log')
- *     myLog:SetTitle('My Custom Log')
- *     myLog:SetDescription('This log tracks custom events in my game.')
- *     myLog:SetColor(Color(0, 255, 0)) -- Set log color to green
- *     myLog:SetSort(1) -- Set sort order
- *     myLog:Register()
+ *   @example
+ *   				-- To create a new log:
+ *   				local myLog = DanLib.Func.CreateLogs('my_custom_log')
+ *   				myLog:SetTitle('My Custom Log')
+ *   				myLog:SetDescription('This log tracks custom events in my game.')
+ *   				myLog:SetColor(Color(0, 255, 0)) -- Set log color to green
+ *   				myLog:SetSort(1) -- Set sort order
+ *   				myLog:Register()
  *
- *   - To load all logs:
- *     DanLib.Func.LoadLogs()
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
  *
- *   @notes: Ensure that log IDs are unique to avoid conflicts. All log files should be placed
- *   in the specified logs directory for proper loading.
+ *   @notes: 		Ensure that log IDs are unique to avoid conflicts. All log files should be placed
+ *   			    in the specified logs directory for proper loading.
  */
 
  
 
-DanLib.ModulesMetaLogs = {}
+DanLib.ModulesMetaLogs = { }
 
 local LogsMeta = {
 	--- Registers the log by adding it to the global logs table
@@ -131,7 +130,7 @@ LogsMeta['__index'] = LogsMeta
 function DanLib.Func.CreateLogs(id)
 	local Log = {
 		ID = id,
-		Option = {},
+		Option = { },
 		Sort = 0
 	}
 	setmetatable(Log, LogsMeta)

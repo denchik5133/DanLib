@@ -1,24 +1,29 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     UI Elements Panel
+ *   @license       MIT License
+ *   @version       1.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
-local base = DanLib.Func
-local customUtils = DanLib.CustomUtils.Create
+local DBase = DanLib.Func
+local DCustomUtils = DanLib.CustomUtils.Create
 
 local PlaySound = surface.PlaySound
 local isValid = IsValid
@@ -27,12 +32,11 @@ local math = math
 local abs = math.abs
 local max = math.max
 
-
-function base:CreateLabel(parent, text, font, TextColor)
+function DBase:CreateLabel(parent, text, font, TextColor)
     font = font or 'danlib_font_18'
 
-    local PANEL = customUtils(parent, 'DLabel')
-    PANEL:SetTextColor(TextColor or base:Theme('title'))
+    local PANEL = DCustomUtils(parent, 'DLabel')
+    PANEL:SetTextColor(TextColor or DBase:Theme('title'))
     PANEL:SetFont(font)
     PANEL:SetText(text or '')
 
@@ -65,52 +69,33 @@ function base:CreateLabel(parent, text, font, TextColor)
     return PANEL
 end
 
-
-function base:CreateHTML(parent, url)
-    local html = customUtils(parent, 'DHTML')
-
+function DBase:CreateHTML(parent, url)
+    local html = DCustomUtils(parent, 'DHTML')
     if url then
         html:SetScrollbars(false)
         html:SetHTML(url)
-        -- html:SetHTML([[
-        --     <body style="overflow: hidden; height: 100%; width: 100%;">
-        --         <img src="]] .. url .. [[" style="position: absolute; height: auto; width: auto; top: -50%; left: -50%; bottom: -50%; right: -50%; margin: auto; min-height: 100%; min-width: 100%;">
-        --     </body>
-        -- ]])
     end
-
     return html
 end
-
-
---- Creates a new panel element with the ability to customise the theme and shadows.
--- @param parent: The parent element to which the panel will be bound.
--- @param rounded: A table with boolean values for each corner (top-left, top-right, bottom-left, bottom-right).
--- @param radius: The radius for the rounded corners.
--- @return PANEL: Returns the panel element that was created.
-function base:CreatePanel(parent, rounded, radius)
-    return customUtils(parent)
-end
-
 
 --- Creates a model panel to display the 3D model in the user interface.
 -- @param parent Panel: The parent panel for the model.
 -- @return DModelPanel: The created model panel.
-function base:CreateModelPanel(parent)
-    local Panel = customUtils(parent)
+function DBase:CreateModelPanel(parent)
+    local Panel = DCustomUtils(parent)
 
     --- Draws the background and frame around the model.
     Panel:ApplyEvent(nil, function(_, w, h)
-        DanLib.Utils:DrawRoundedBox(0, 0, w, h, base:Theme('background'))
-        DanLib.Utils:DrawOutlinedRoundedRect(6, 0, 0, w, h, 4, base:Theme('frame'))
+        DanLib.Utils:DrawRoundedBox(0, 0, w, h, DBase:Theme('background'))
+        DanLib.Utils:DrawOutlinedRoundedRect(6, 0, 0, w, h, 4, DBase:Theme('frame'))
     end)
 
     -- Panel:ApplyEvent('PaintOver', function(sl, w, h)
     --     DanLib.Utils:DrawGradient(0, h - 50, w, 100, TOP, Color(93, 180, 255, 30))
     -- end)
 
-    Panel.ModelPanel = customUtils(Panel, 'DModelPanel')
-    Panel.ModelPanel:Pin(FILL)
+    Panel.ModelPanel = DCustomUtils(Panel, 'DModelPanel')
+    Panel.ModelPanel:Pin()
 
     --- Configuring the behaviour of the model during rendering.
     function Panel.ModelPanel:LayoutEntity()
@@ -178,11 +163,9 @@ function base:CreateModelPanel(parent)
     return Panel
 end
 
-
-
 -- https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/vgui/dadjustablemodelpanel.lua
-function base:CreateAdjustableModelPanel(parent)
-    local ModelPanel = customUtils(parent, 'DModelPanel')
+function DBase:CreateAdjustableModelPanel(parent)
+    local ModelPanel = DCustomUtils(parent, 'DModelPanel')
 
     AccessorFunc(ModelPanel, 'm_bFirstPerson', 'FirstPerson')
 
@@ -291,10 +274,9 @@ function base:CreateAdjustableModelPanel(parent)
     return ModelPanel
 end
 
-
 --- Copies text to the clipboard and displays a notification on the screen.
 -- @param CopyText (string): Text to be copied to the clipboard. If not specified, an empty string is used.
-function base:ClipboardText(CopyText)
+function DBase:ClipboardText(CopyText)
     CopyText = CopyText or ''
     local text = self:L('#copied.clipboard')
     local pos_x, pos_y = gui.MouseX(), gui.MouseY()
@@ -302,7 +284,7 @@ function base:ClipboardText(CopyText)
 
     SetClipboardText(CopyText)
 
-    local CLIP_BOARD_TEXT = customUtils()
+    local CLIP_BOARD_TEXT = DCustomUtils()
     CLIP_BOARD_TEXT:SetDrawOnTop(true)
     CLIP_BOARD_TEXT:ApplyAttenuation(0.2)
     CLIP_BOARD_TEXT:SetSize(text_x + 1, text_y + 1)
@@ -318,7 +300,7 @@ function base:ClipboardText(CopyText)
     self:PlaySound('error')
 
     -- Deleting the panel in 0.4 seconds
-    self:TimerSimple(0.4, function()
+    DanLib.Timer:Simple(0.4, function()
        if isValid(CLIP_BOARD_TEXT) then
             CLIP_BOARD_TEXT:AlphaTo(0, 0.4, 0, function()
                 CLIP_BOARD_TEXT:Remove()

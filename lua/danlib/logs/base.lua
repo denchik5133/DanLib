@@ -1,11 +1,22 @@
 /***
  *   @addon         DanLib
- *   @version       2.0.0
+ *   @component     Module Logs Base
+ *   @license       MIT License
+ *   @version       1.5.1
  *   @release_date  01/12/2025
- *   @author        denchik
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
+ *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
+ *                  GitHub: https://github.com/denchik5133
  *   
  *   @description   Enhanced Discord logging system with queue, batch, and retry mechanisms
- *   @license       MIT License
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
  
 

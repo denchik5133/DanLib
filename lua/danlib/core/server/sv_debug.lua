@@ -1,27 +1,35 @@
 /***
  *   @addon         DanLib
- *   @version       1.0.0
+ *   @component     SV Debug
+ *   @license       MIT License
+ *   @version       1.0.1
  *   @release_date  15/12/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
  *   @description   Server Debug Hooks & Commands
- *   @license       MIT License
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
 local DEBUG = DanLib.DEBUG
+
 local _IsValid = IsValid
 local _osDate = os.date
 local _ipairs = ipairs
-local _playerGetAll = player.GetAll
 local _stringFormat = string.format
 
 -- Lua execution error
-hook.Add('OnLuaError', 'DanLib.Debug.ServerError', function(err, realm, stack, name, id)
+DanLib.Hook:Add('OnLuaError', 'DanLib.Debug.ServerError', function(err, realm, stack, name, id)
     if (realm ~= 'server') then
         return
     end
@@ -36,30 +44,14 @@ hook.Add('OnLuaError', 'DanLib.Debug.ServerError', function(err, realm, stack, n
     end
     
     if DEBUG:ShouldCatchError(fullError) then
-        -- Adding it to the server logs
+        -- CatchError logs the entry AND calls BroadcastError (with rate limiting).
+        -- No manual net.Send needed here — doing so was a double-broadcast.
         DEBUG:CatchError(fullError, stack)
-        
-        -- Sending to clients
-        local errorEntry = {
-            error = fullError,
-            stack = stack or '',
-            timestamp = _osDate('%H:%M:%S'),
-            realm = 'SERVER',
-            type = 'RUNTIME'
-        }
-        
-        for _, ply in _ipairs(_playerGetAll()) do
-            if DEBUG:CanPlayerDebug(ply) then
-                net.Start('DanLib.Debug.ServerError')
-                net.WriteTable(errorEntry)
-                net.Send(ply)
-            end
-        end
     end
 end)
 
 --- Exporting logs
-concommand.Add('danlib_debug_export', function(pPlayer, cmd, args)
+DanLib.Concommand:Add('danlib_debug_export', function(pPlayer, cmd, args)
     if (_IsValid(pPlayer) and not DEBUG:CanPlayerDebug(pPlayer)) then
         pPlayer:ChatPrint('[DanLib Debug] Access denied.')
         return

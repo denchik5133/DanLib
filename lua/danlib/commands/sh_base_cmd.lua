@@ -1,127 +1,99 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Module CMD
+ *   @license       MIT License
+ *   @version       1.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
-local base = DanLib.Func
-local DarkOrange = DanLib.Config.Theme['DarkOrange']
-local Blue = DanLib.Config.Theme['Blue']
+local DBase = DanLib.Func
 
-
--- TEST
--- local COMMAND_TEST = DanLib.Func.CreateCommand('test')
--- COMMAND_TEST:SetDescription('Simple testings')
--- COMMAND_TEST:SetAccess({'superadmin'})
--- COMMAND_TEST.Run = function(pPlayer, sText)
---     if (sText == '' or sText == nil) then 
---         DanLib.Func:ArgError(pPlayer)
---         return
---     end
-
---     DanLib.Func:SendMessage(pPlayer, DANLIB_TYPE_DEBUG, Color(0, 255, 0), '[TEST2] ', Color(0, 255, 0), color_white, sText)
--- end
--- COMMAND_TEST:Register()
 
 -- View Data
-local COMMAND_VIEWDATA = DanLib.Func.CreateCommand('viewdata')
+local COMMAND_VIEWDATA = DBase.CreateCommand('viewdata')
 COMMAND_VIEWDATA:SetDescription('This chat command is for displaying addon statistics.')
 COMMAND_VIEWDATA:SetAccess({ DanLib.Author, '76561199493672657' })
 COMMAND_VIEWDATA.Run = function(pPlayer, sText)
     if (pPlayer:SteamID64() ~= DanLib.Author and pPlayer:SteamID64() ~='76561199493672657') then
-        DanLib.Func:ArgError(pPlayer, true)
+        DanLDBasenc:ArgError(pPlayer, true)
         return
     end
 
     pPlayer:PrintMessage(HUD_PRINTCONSOLE, 'Addons Name: '.. DanLib.AddonsName)
     pPlayer:PrintMessage(HUD_PRINTCONSOLE, 'Author of Addons: '.. DanLib.Author .. ' and 76561199493672657')
     pPlayer:PrintMessage(HUD_PRINTCONSOLE, 'Addons Version: '.. DanLib.Version)
-    base:SendDebugMessage(pPlayer, 'Addons Name: ', DarkOrange, DanLib.AddonsName, color_white, ' Author of Addons: ', DarkOrange, DanLib.Author, color_white, ' and ', DarkOrange, '76561199493672657', color_white, ' Addons Version: ', Blue, DanLib.Version)
+    DBase:SendDebugMessage(pPlayer, 'Addons Name: ', DBase:GetColor('DarkOrange'), DanLib.AddonsName, color_white, ' Author of Addons: ', DBase:GetColor('DarkOrange'), DanLib.Author, color_white, ' and ', DBase:GetColor('DarkOrange'), '76561199493672657', color_white, ' Addons Version: ', DBase:GetColor('Blue'), DanLib.Version)
 end
 COMMAND_VIEWDATA:Register()
 
 
--- ME
--- local COMMAND_ME = DanLib.Func.CreateCommand('me')
--- COMMAND_ME:SetDescription('Simple testings')
--- COMMAND_ME:SetAccess({'user', 'superadmin'})
--- COMMAND_ME.Run = function(pPlayer, sText)
---     if (sText == '' or sText == nil) then 
---         DanLib.Func:ArgError(pPlayer)
---         return
---     end
-
---     DanLib.Func:SendMessageDistance(pPlayer, 0, 250, Color(255, 69, 56), '[ ', color_white, 'ME', Color(255, 69, 56), ' ] ', Color(255, 165, 0), pPlayer:Name(), color_white, ': ', Color(252, 186, 255), sText)
-
---     hook.Run('DanLib:CommandRun.RP', 'me', pPlayer, sText)
--- end
--- COMMAND_ME:Register()
-
-
 -- Useful commands
 -- GetModel
-local COMMAND_GETMODEL = DanLib.Func.CreateCommand('getmodel')
+local COMMAND_GETMODEL = DBase.CreateCommand('getmodel')
 COMMAND_GETMODEL:SetDescription('Gets the model of the {color: 173, 138, 86}entity{/color:} you are looking at. Look at the {color: 0, 255, 0}model{/color:}!')
 COMMAND_GETMODEL:SetAccess({ 'user', 'superadmin', 'rank_owner', 'rank_member' })
 COMMAND_GETMODEL.Run = function(pPlayer)
     local ent = pPlayer:GetEyeTrace().Entity
     if (not IsValid(ent)) then
-        DanLib.Func:SendMessage(pPlayer, DANLIB_TYPE_WARNING, DanLib.Func:L('#view.receive'))
+        DBase:SendMessage(pPlayer, DANLIB_TYPE_WARNING, DBase:L('#view.receive'))
         return
     end
 
-    DanLib.Func:SendMessage(pPlayer, 0, DanLib.Func:L('model:'), Color(0, 255, 0), ent:GetModel(), color_white, DanLib.Func:L('#model.retrieved'))
+    DBase:SendMessage(pPlayer, 0, DBase:L('model:'), Color(0, 255, 0), ent:GetModel(), color_white, DBase:L('#model.retrieved'))
     pPlayer:SendLua('SetClipboardText("' .. ent:GetModel() .. '")')
 end
 COMMAND_GETMODEL:Register()
 
 
 -- Pop-up notification
-local COMMAND_NOTIFI = DanLib.Func.CreateCommand('sn')
+local COMMAND_NOTIFI = DBase.CreateCommand('sn')
 COMMAND_NOTIFI:SetDescription('Sends a pop-up message on behalf of the server. {color: 251, 197, 49}(/sn ...){/color:}')
 COMMAND_NOTIFI:SetAccess({ 'superadmin', 'rank_owner' })
 COMMAND_NOTIFI.Run = function(pPlayer, sText)
     if (not pPlayer:IsSuperAdmin()) then
-        DanLib.Func:ArgError(pPlayer, true)
+        DBase:ArgError(pPlayer, true)
         return
     end
 
     if (sText == '' or sText == nil) then 
-        DanLib.Func:ArgError(pPlayer)
+        DBase:ArgError(pPlayer)
         return
     end
-    DanLib.Func:SendGlobalNotifi(sText)
+    DBase:SendGlobalNotifi(sText)
 end
 COMMAND_NOTIFI:Register()
 
 
 -- Server message
-local COMMAND_SERVERMSG = DanLib.Func.CreateCommand('sm')
+local COMMAND_SERVERMSG = DBase.CreateCommand('sm')
 COMMAND_SERVERMSG:SetDescription('Sends a message on behalf of the server. {color: 251, 197, 49}(/sm ...){/color:}')
 COMMAND_SERVERMSG:SetAccess({ 'superadmin', 'rank_owner' })
 COMMAND_SERVERMSG.Run = function(pPlayer, sText)
     if (not pPlayer:IsAdmin()) then
-        DanLib.Func:ArgError(pPlayer, true)
+        DBase:ArgError(pPlayer, true)
         return
     end
 
     if (sText == '' or sText == nil) then 
-        DanLib.Func:ArgError(pPlayer)
+        DBase:ArgError(pPlayer)
         return
     end
-    DanLib.Func:SendGlobalMessage('SERVER', sText)
+    DBase:SendGlobalMessage('SERVER', sText)
 end
 COMMAND_SERVERMSG:Register()

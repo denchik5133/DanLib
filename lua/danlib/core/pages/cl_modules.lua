@@ -1,9 +1,13 @@
 /***
- *   @component     DanLib Modules Manager
- *   @version       1.2.0
- *   @file          cl_modules.lua
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @addon         DanLib
+ *   @component     Modules Page
+ *   @license       MIT License
+ *   @version       1.2.2
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
@@ -12,10 +16,8 @@
  *                  interface for viewing installed modules, checking updates, and accessing
  *                  detailed module information with optimized performance through caching.
  *
- *   @part_of       DanLib v3.0.0 and higher
- *                  https://github.com/denchik5133/danlib
- *
- *   @features      - Automatic version checking with HTTP caching (5-minute TTL)
+ *   @functions     
+ *                  - Automatic version checking with HTTP caching (5-minute TTL)
  *                  - Dynamic 3-column grid layout with responsive sizing
  *                  - Interactive module cards with hover effects
  *                  - Detailed module information popups at mouse position
@@ -24,23 +26,10 @@
  *                  - Performance optimizations (cached colors, pre-calculated sizes)
  *                  - Tutorial integration with sequence tracking
  *                  - Copyable module information headers
+ *   
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
  *
- *   @dependencies  - DanLib.Func (DBase)
- *                  - DanLib.UI
- *                  - DanLib.Utils (DUtils)
- *                  - DanLib.Table (DTable)
- *                  - DanLib.CustomUtils
- *                  - DanLib.Config.Materials
- *                  - DanLib.HTTP
- *                  - DanLib.NetworkUtil
- *
- *   @performance   - HTTP request caching: 300 seconds (5 minutes)
- *                  - Sorted modules caching: Until invalidated
- *                  - Debounce protection: 2 seconds
- *                  - Pre-calculated text sizes for version badges
- *                  - Cached theme colors per module card
- *
- *   @license       MIT License
  *   @notes         An active internet connection is required to verify the version.
  *                  Extracts update data from: https://raw.githubusercontent.com/denchik5133/DDI-Other-Informations/main/DDI/update.json
  */
@@ -50,6 +39,7 @@
 -- Cache frequently used references
 local DBase = DanLib.Func
 local DUI = DanLib.UI
+local DNet = DanLib.Net
 local DUtils = DanLib.Utils
 local DTable = DanLib.Table
 local DCustomUtils = DanLib.CustomUtils.Create
@@ -70,9 +60,11 @@ local _TEXT_ALIGN_CENTER = TEXT_ALIGN_CENTER
 local _TEXT_ALIGN_LEFT = TEXT_ALIGN_LEFT
 local _TEXT_ALIGN_RIGHT = TEXT_ALIGN_RIGHT
 
-local MODULES = DBase.CreatePage(DBase:L('#modules'))
+local MODULES = DBase.CreatePage('modules')
+MODULES:SetName(DBase:L('#modules'))
 MODULES:SetOrder(4)
 MODULES:SetIcon('oDR9aTn')
+MODULES:SetID('modules')
 MODULES:SetKeyboardInput(true)
 
 --- Checks if the player has access to the administration pages.
@@ -87,13 +79,10 @@ end
 function MODULES:Create(parent)
     DBase:TutorialSequence(3, 2)
     local m = DBase.CreatePanelModules(parent)
-    m:Pin(FILL)
+    m:Pin()
     m:FillPanel()
 end 
 
---- URL for fetching module update information.
--- @type string
-local updateLink = 'https://raw.githubusercontent.com/denchik5133/DDI-Other-Informations/main/DDI/update.json'
 local defaultFont = 'danlib_font_20'
 local defaultFont2 = 'danlib_font_18'
 
@@ -104,6 +93,16 @@ local cacheExpireTime = 0
 local CACHE_TTL = 300 -- 5 minutes in seconds
 local lastUpdateTime = 0
 local UPDATE_COOLDOWN = 2 -- seconds
+
+-- Receive version data sent by sv_modules.lua (server fetches GitHub to avoid client SSL issues)
+DNet:On('DanLib.Modules.VersionData', function()
+    local json = DNet:Str()
+    local ok, data = pcall(util.JSONToTable, json)
+    if (ok and data) then
+        versionsCache = data
+        cacheExpireTime = _CurTime() + CACHE_TTL
+    end
+end)
 
 --- Creates a panel with common settings for module display.
 -- @param parent: The parent panel to which this panel will be attached.
@@ -124,18 +123,15 @@ end
 function DBase.CreatePanelModules(parent)
     local MODULE = DCustomUtils(parent)
 
-    --- Refreshes the version cache with optional force update
+    --- Refreshes the version cache by requesting data from the server.
+    -- Server fetches from GitHub (SSL works server-side) and sends back JSON.
     -- @param force: If true, forces a cache refresh regardless of TTL
     function MODULE:RefreshVersionCache(force)
         local currentTime = _CurTime()
         
         if (force or not versionsCache or currentTime > cacheExpireTime) then
-            DanLib.HTTP:Fetch(updateLink, function(data)
-                versionsCache = DanLib.NetworkUtil:JSONToTable(data)
-                cacheExpireTime = currentTime + CACHE_TTL
-            end, function(err)
-                print('[DanLib] Failed to fetch module updates:', err or 'Unknown error')
-            end)
+            DNet:Open('DanLib.Modules.RequestVersions')
+                :Up()
         end
     end
 
@@ -143,7 +139,7 @@ function DBase.CreatePanelModules(parent)
     -- @return table: Returns sorted modules array
     function MODULE:GetSortedModules()
         if (not sortedModulesCache) then
-            sortedModulesCache = {}
+            sortedModulesCache = { }
             for k, v in _pairs(DanLib.ConfigMeta) do
                 DTable:Add(sortedModulesCache, { v.SortOrder, k })
             end
@@ -166,7 +162,7 @@ function DBase.CreatePanelModules(parent)
         local colorDecor = DBase:Theme('decor')
         local colorText = DBase:Theme('text')
         local colorMat = DBase:Theme('mat', 150)
-        local colorYellow = DanLib.Config.Theme['Yellow']
+        local colorYellow = DBase:GetColor('Yellow')
 
         -- Create the title panel.
         self.header = CreatePanelWithSettings(self, 46, 12)
@@ -185,7 +181,7 @@ function DBase.CreatePanelModules(parent)
 
         -- Create a grid layout for modules.
         self.grid = DBase.CreateGridPanel(self)
-        self.grid:PinMargin(FILL, 4, nil, 2)
+        self.grid:PinMargin(nil, 4, nil, 2)
         self.grid:SetColumns(3)
         self.grid:SetHorizontalMargin(12)
         self.grid:SetVerticalMargin(12)
@@ -409,8 +405,7 @@ function DBase.CreatePanelModules(parent)
 
         -- Create a scrollable panel for module details.
         local scroll = DCustomUtils(pnl, 'DanLib.UI.Scroll')
-        scroll:Dock(FILL)
-        scroll:DockMargin(0, 5, 0, 5)
+        scroll:PinMargin(nil, nil, 5, nil, 5)
         scroll:ToggleScrollBar() -- Enable scrolling.
 
         -- Add module details to the scroll panel.
@@ -419,11 +414,11 @@ function DBase.CreatePanelModules(parent)
         self.AddPanelText(scroll, 'Name', module.Title, module.Color)
 
         -- Get cached version data.
-        local checkVersions = versionsCache or {}
+        local checkVersions = versionsCache or { }
         -- Check the version for the module.
         local checkVer = checkVersions[module.Title]
         -- Define color constants.
-        local red, green, yellow = DanLib.Config.Theme['Red'], DanLib.Config.Theme['Green'], DanLib.Config.Theme['Yellow']
+        local red, green, yellow = DBase:GetColor('Red'), DBase:GetColor('Green'), DBase:GetColor('Yellow')
         -- Check if the module is up-to-date.
         local isUpToDate = (module.Version == checkVer)
         -- Default text and color.
@@ -433,7 +428,9 @@ function DBase.CreatePanelModules(parent)
             -- Set color based on version status.
             color = isUpToDate and green or yellow
             -- Set text based on version status.
-            text = isUpToDate and DBase:L('#latest.version') or DBase:L('#update.needed') .. ' ' .. DBase:L('#new.version', { version = checkVer })
+            text = isUpToDate and DBase:L('#latest.version') or DBase:L('#update.needed') .. ' ' .. DBase:L('#new.version', {
+                version = checkVer
+            })
         end
 
         -- Wrap text for display.

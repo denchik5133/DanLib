@@ -1,10 +1,12 @@
 /***
  *   @addon         DanLib
- *   @component     CreateUICheckbox
- *   @version       2.0.4
+ *   @component     UI Checkbox
+ *   @version       2.0.5
  *   @release_date  01/23/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
@@ -13,7 +15,8 @@
  *                  LEFT/RIGHT text positioning, state-specific colors, hover animations,
  *                  and full backward compatibility with DanLib 3.0.0.
  *
- *   @features      - Dynamic text system (ON/OFF, Active/Inactive, custom states)
+ *   @functions     
+ *                  - Dynamic text system (ON/OFF, Active/Inactive, custom states)
  *                  - Disabled state with 40% alpha dimming and cursor feedback
  *                  - LEFT/RIGHT text positioning with fixed checkbox alignment
  *                  - Independent text colors for enabled/disabled states
@@ -25,11 +28,10 @@
  *   @api           DBase.CreateCheckbox(parent) - Legacy API with manual configuration
  *                  DBase.CreateUICheckbox(parent, options) - Modern declarative API
  *
- *   @compatibility DanLib 3.0.0+ | Full backward compatibility with legacy implementations
- *   @performance   60+ FPS with 100+ checkboxes | Optimized Paint() with position caching
- *   @license       MIT License
- *   @repository    https://github.com/denchik5133
- *   @notes         Part of DanLib UI component library. See repository for full documentation.
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
@@ -591,7 +593,7 @@ local function checkboxExample()
         value = false,
         tooltip = { 'Toggle auto-refresh', nil, nil, TOP },
         change = function(self, val)
-            print('Auto-refresh:', val)
+            DBase:Print('Auto-refresh:', val)
         end
     })
 
@@ -600,7 +602,7 @@ local function checkboxExample()
         pos = { 10, 250 },
         value = false,
         change = function(self, val)
-            print('State:', val and 'ON' or 'OFF')
+            DBase:Print('State:', val and 'ON' or 'OFF')
         end
     })
 
@@ -610,7 +612,7 @@ local function checkboxExample()
         value = true,
         tooltip = { 'Server status indicator', nil, nil, TOP },
         change = function(self, val)
-            print('Server is', val and 'ONLINE' or 'OFFLINE')
+            DBase:Print('Server is', val and 'ONLINE' or 'OFFLINE')
         end
     })
 

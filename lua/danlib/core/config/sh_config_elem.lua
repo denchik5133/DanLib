@@ -1,17 +1,22 @@
 /***
  *   @addon         DanLib
+ *   @component     Config
+ *   @license       MIT License
  *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
  
@@ -19,7 +24,7 @@
 
 -- Primary colours
 -- This section defines the basic colour schemes used in the interface.
-DanLib.Config.Theme = DanLib.Config.Theme or {}
+DanLib.Config.Theme = DanLib.Config.Theme or { }
 DanLib.Config.Theme = {
     ['White'] = Color(255, 255, 255), -- White
     ['DarkGray'] = Color(47, 54, 64), -- Dark grey
@@ -40,10 +45,26 @@ DanLib.Config.Theme = {
     ['DodgerBlue'] = Color(30, 144, 255), -- Dodger colour
 }
 
+--- Retrieves a colour from DanLib.Config.Theme by name.
+-- Mirrors the DBase:Theme(key, alpha) pattern for the raw palette table.
+-- @param name (string) Key in DanLib.Config.Theme, e.g. 'Red', 'Gold'.
+-- @param alpha (number|nil) Optional alpha override (0–255). Creates a new Color so the palette entry itself is never mutated.
+-- @return Color The requested colour, or Color(0,0,0,255) if not found.
+function DanLib.Func:GetColor(name, alpha)
+    local c = DanLib.Config.Theme[name]
+    if (not c) then
+        return Color(0, 0, 0, alpha or 255)
+    end
+
+    if alpha then
+        return Color(c.r, c.g, c.b, alpha)
+    end
+    return c
+end
 
 -- Basic sounds
 -- This section defines the sounds used in the various actions of the interface.
-DanLib.Config.Sound = DanLib.Config.Sound or {}
+DanLib.Config.Sound = DanLib.Config.Sound or { }
 DanLib.Config.Sound = {
     ['ClickButton'] = Sound('danlib/click2.wav'), -- Sound of a button being pressed
     ['Navigation'] = Sound('danlib/synopsis.mp3'), -- Navigation sound
@@ -54,10 +75,9 @@ DanLib.Config.Sound = {
     ['error'] = Sound('ddi/error.mp3'), -- Error sound
 }
 
-
 -- Basic materials (icons)
 -- This section contains the materials used for icons in the interface.
-DanLib.Config.Materials = DanLib.Config.Materials or {}
+DanLib.Config.Materials = DanLib.Config.Materials or { }
 DanLib.Config.Materials = {
     ['Module']          = '4on53Ef', -- Module icon
     ['User']            = 'iUXCfUK', -- User icon
@@ -95,6 +115,7 @@ DanLib.Config.Materials = {
     ['Debug']           = 'oABaJ7r',
     ['Info']            = '2ozta79',
     ['Confirm']         = 'KaL0bD8',
+    ['Copy']            = 'C1bpjkc',
 
     -- Other
     ['Blur']            = Material('pp/blurscreen'), -- blur
@@ -131,10 +152,9 @@ DanLib.Config.Materials = {
     ['corner_512']      = Material('gui/corner512'),
 }
 
-
 -- Configuration of chat types
 -- This section defines the message types and their colours for chat.
-DanLib.BaseConfig.ChatType = DanLib.BaseConfig.ChatType or {}
+DanLib.BaseConfig.ChatType = DanLib.BaseConfig.ChatType or { }
 DanLib.BaseConfig.ChatType = {
     NONE_COLOR = color_white, -- Colour for an empty message
 
@@ -156,7 +176,6 @@ DanLib.BaseConfig.ChatType = {
     }
 }
 
-
 -- Constants for message types
 DANLIB_TYPE_DEBUG = 0 -- Debug type
 DANLIB_TYPE_INFO = 1 -- Information type
@@ -169,38 +188,33 @@ DANLIB_TYPE_NOTIFICATION = 7 -- Notification type
 DANLIB_TYPE_RP = 8 -- RP type
 DANLIB_TYPE_SERVER = 9 -- Server type
 
-
-FORMAT_PLAYER    = 0
-FORMAT_WEAPON    = 1
-FORMAT_ENTITY    = 2
-FORMAT_PROP      = 3
-FORMAT_RAGDOLL   = 4
-FORMAT_CURRENCY  = 5
-FORMAT_COUNTRY   = 6
-FORMAT_AMMO      = 7
-FORMAT_TEAM      = 8
+FORMAT_PLAYER = 0
+FORMAT_WEAPON = 1
+FORMAT_ENTITY = 2
+FORMAT_PROP = 3
+FORMAT_RAGDOLL = 4
+FORMAT_CURRENCY = 5
+FORMAT_COUNTRY = 6
+FORMAT_AMMO = 7
+FORMAT_TEAM = 8
 FORMAT_USERGROUP = 9
-FORMAT_STRING    = 10
+FORMAT_STRING = 10
 FORMAT_HIGHLIGHT = 11
-FORMAT_ROLE      = 12
-FORMAT_VEHICLE   = 13
-FORMAT_DAMAGE    = 14
-
-
+FORMAT_ROLE = 12
+FORMAT_VEHICLE = 13
+FORMAT_DAMAGE = 14
 
 -- Permissions
 DanLib.BaseConfig.RanksMax = 15
-DanLib.BaseConfig.Permissions = DanLib.BaseConfig.Permissions or {}
+DanLib.BaseConfig.Permissions = DanLib.BaseConfig.Permissions or { }
 -- DanLib.BaseConfig.Permissions['EditSettings'] = 'Permission to edit the configuration.'
 -- DanLib.BaseConfig.Permissions['EditRanks'] = 'Permission to edit ranks.'
 -- DanLib.BaseConfig.Permissions['AdminPages'] = 'Permission to view pages for administrators.'
 -- DanLib.BaseConfig.Permissions['ViewHelp'] = 'Permissions to view the page and other help items.'
 -- DanLib.BaseConfig.Permissions['Tutorial'] = 'Permission to view the textbook.'
--- DanLib.BaseConfig.Permissions['SpawnNPC'] = 'Permission to spawn NPCs.'
-
 
 -- Initialising the key binding menu
-DanLib.KEY_BIND_MENU = DanLib.KEY_BIND_MENU or {}
+DanLib.KEY_BIND_MENU = DanLib.KEY_BIND_MENU or { }
 DanLib.KEY_BIND_MENU = {
     ['F1'] = true, -- Switching on F1
     ['F2'] = true, -- Switching on F2
@@ -209,9 +223,8 @@ DanLib.KEY_BIND_MENU = {
     ['OFF'] = true, -- Deactivation of binding
 }
 
-
 -- Initialising the list of bound keys
-DanLib.KEY_BINDS = DanLib.KEY_BINDS or {}
+DanLib.KEY_BINDS = DanLib.KEY_BINDS or { }
 DanLib.KEY_BINDS = {
     -- Numbers
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -236,9 +249,8 @@ DanLib.KEY_BINDS = {
     'Capslock Toggle', 'Numlock Toggle', 'Last', 'Count'
 }
 
-
 -- Initialisation of message types with relevant material
-DanLib.TYPE = DanLib.TYPE or {}
+DanLib.TYPE = DanLib.TYPE or { }
 DanLib.TYPE = {
     ['DEBUG'] = DanLib.Config.Materials['Debug'], -- Debugging material
     ['INFO'] = DanLib.Config.Materials['Info'], -- Material for information
@@ -250,9 +262,8 @@ DanLib.TYPE = {
     ['NOTIFICATION'] = DanLib.Config.Materials['Notifi'] -- Material for notifications
 }
 
-
 -- Initialising colours for message types
-DanLib.TYPE_COLOR = DanLib.TYPE_COLOR or {}
+DanLib.TYPE_COLOR = DanLib.TYPE_COLOR or { }
 DanLib.TYPE_COLOR = {
     ['DEBUG'] = DanLib.Config.Theme['LightRed'], -- Colour for debugging
     ['INFO'] = DanLib.Config.Theme['DarkBlue'], -- Colour for information
@@ -264,9 +275,8 @@ DanLib.TYPE_COLOR = {
     ['NOTIFICATION'] = DanLib.Config.Theme['Yellow'] -- Colour for notifications
 }
 
-
 -- Initialisation of entity types
-DanLib.BaseConfig.EntityTypes = DanLib.BaseConfig.EntityTypes or {}
+DanLib.BaseConfig.EntityTypes = DanLib.BaseConfig.EntityTypes or { }
 DanLib.BaseConfig.EntityTypes['ddi_npc_spawn'] = {
     -- Function for retrieving entity data
     GetDataFunc = function(entity) 
@@ -278,21 +288,19 @@ DanLib.BaseConfig.EntityTypes['ddi_npc_spawn'] = {
     end
 }
 
-
 -- Initialisation of entity type functions
-DanLib.BaseConfig.EntityTypesFunc = DanLib.BaseConfig.EntityTypesFunc or {}
+DanLib.BaseConfig.EntityTypesFunc = DanLib.BaseConfig.EntityTypesFunc or { }
 DanLib.BaseConfig.EntityTypesFunc['default_menu'] = {
     -- Function for using the menu
     UseFunc = function(pPlayer, ent, key)
-        DanLib.Network:Start('DanLib:BaseMenu')
-        DanLib.Network:WriteUInt(key, 8)
-        DanLib.Network:SendToPlayer(pPlayer)
+        DanLib.Net:Open('DanLib:BaseMenu')
+            :UInt(key, 8)
+            :Send(pPlayer)
     end
 }
 
-
 -- Initialising the textbook configuration in the base configuration
-DanLib.BaseConfig.Tutorials = DanLib.BaseConfig.Tutorials or {}
+DanLib.BaseConfig.Tutorials = DanLib.BaseConfig.Tutorials or { }
 DanLib.BaseConfig.Tutorials = {
     [1] = {
         -- The title of the first textbook

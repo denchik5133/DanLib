@@ -1,16 +1,20 @@
 /*** 
  *   @addon         DanLib
- *   @version       2.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Loader
+ *   @license       MIT License
+ *   @version       2.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
  *   @description   File loader with tree visualization and realm-based filtering.
  *                  Supports recursive directory loading, module manifests, and grouped output.
  *   
- *   @features
+ *   @functions
  *                  - Automatic realm detection (sv_, cl_, sh_ prefixes)
  *                  - Beautiful tree-style console output with colors
  *                  - Module support with manifest.lua auto-discovery
@@ -29,15 +33,16 @@
  *                  loader:IncludeModule('modules/database')
  *                  loader:EndGroup()
  *                  loader:Register()
- *   
- *   @license       MIT License
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */  
 
 
 
-DanLib = DanLib or {}
-DanLib.loader = DanLib.loader or {}
+DanLib.loader = DanLib.loader or { }
 local DLoader = DanLib.loader
 
 -- Cached
@@ -131,7 +136,7 @@ local function _formatFileInfo(shared, server, client)
         return ''
     end
     
-    local parts = {}
+    local parts = { }
     if (shared > 0) then
         _tableInsert(parts, shared .. ' shared')
     end
@@ -147,7 +152,7 @@ local function _formatFileInfo(shared, server, client)
     return _tableConcat(parts, ', ')
 end
 
-local LOADER = {}
+local LOADER = { }
 LOADER.__index = LOADER
 
 AccessorFunc(LOADER, 'm_name', 'Name')
@@ -194,7 +199,7 @@ end
 function LOADER:SetStartsLoading()
     _MsgC(COLOR_BRACKET, '\n[', COLOR_WHITE, self:GetName(), COLOR_BRACKET, '] ', COLOR_YELLOW, 'Starts loading ', COLOR_TIME, _printTime() .. '\n')
     
-    self.rootDirs = {}
+    self.rootDirs = { }
     self.currentGroup = nil
 end
 
@@ -259,7 +264,7 @@ end
 -- @param path (string): The base path for file operations
 -- @return table File counts: {total, shared, server, client}
 local function _loadDirectoryRecursive(self, directory, ignoreFiles, path)
-    ignoreFiles = ignoreFiles or {}
+    ignoreFiles = ignoreFiles or { }
     
     local function ensureSlash(str)
         return str .. (_stringEndsWith(str, '/') and '' or '/')
@@ -293,7 +298,7 @@ local function _loadDirectoryRecursive(self, directory, ignoreFiles, path)
         server = 0,
         client = 0
     }
-    local filteredFiles = {}
+    local filteredFiles = { }
     
     for i = 1, #files do
         local file = files[i]
@@ -347,7 +352,7 @@ end
 -- @param ignoreFiles (table): Table of filenames to ignore { ['filename.lua'] = true }
 -- @return number Total number of files loaded
 function LOADER:IncludeDir(directory, recursive, ignoreFiles)
-    ignoreFiles = ignoreFiles or {}
+    ignoreFiles = ignoreFiles or { }
     local path = self:GetLoadDirectory()
     
     self.stats = self.stats or {
@@ -510,9 +515,9 @@ function LOADER:IncludeModule(modulePath, customConfig)
         manifest = {
             name = customConfig and customConfig.name or _stringMatch(modulePath, '([^/]+)$'),
             version = customConfig and customConfig.version or '1.0.0',
-            shared = _fileFind(basePath .. '/shared/*.lua', 'LUA') or {},
-            server = _fileFind(basePath .. '/server/*.lua', 'LUA') or {},
-            client = _fileFind(basePath .. '/client/*.lua', 'LUA') or {}
+            shared = _fileFind(basePath .. '/shared/*.lua', 'LUA') or { },
+            server = _fileFind(basePath .. '/server/*.lua', 'LUA') or { },
+            client = _fileFind(basePath .. '/client/*.lua', 'LUA') or { }
         }
     end
     
@@ -586,9 +591,9 @@ end
 
 --- Creates a new loader instance
 -- @param config (table): Configuration options
---   version  = '3.2.0'
---   key      = 'XXX-XXX'
---   license  = 'MIT'
+--   version = '3.2.0'
+--   key = 'XXX-XXX'
+--   license = 'MIT'
 -- @return table Loader instance
 function DanLib.Func.CreateLoader(config)
     local tbl = _tableCopy(LOADER)
@@ -597,7 +602,7 @@ function DanLib.Func.CreateLoader(config)
         loaded = 0,
         dirs = 0
     }
-    tbl.rootDirs = {}
+    tbl.rootDirs = { }
     tbl.currentGroup = nil
     
     if config then
@@ -686,3 +691,15 @@ function DanLib.Func.CreateLoader(config)
     
     return tbl
 end
+
+
+concommand.Add('danlib_restart', function(pPlayer)
+    DanLib = DanLib or {}
+    DanLib.Loading.Start()
+
+    if SERVER then
+        if (IsValid(pPlayer) and pPlayer:IsPlayer()) then
+            DanLib.Func:SendCompleteConfig(pPlayer)
+        end
+    end
+end)

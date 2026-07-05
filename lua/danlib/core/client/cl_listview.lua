@@ -1,10 +1,13 @@
 /***
  *   @addon         DanLib
- *   @component     Custom ListView
- *   @version       1.0.0
+ *   @component     UI ListView
+ *   @license       MIT License
+ *   @version       1.2.1
  *   @release_date  01/24/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
@@ -12,7 +15,8 @@
  *                  custom cell rendering, row selection, alternating backgrounds, and
  *                  smooth animations.
  *
- *   @features      - Sortable columns with numeric/string comparison + cached lower()
+ *   @features      
+ *                  - Sortable columns with numeric/string comparison + cached lower()
  *                  - Custom cell rendering (avatars, badges, buttons)
  *                  - Single/multi-row selection with callbacks
  *                  - Alternating row backgrounds (zebra stripes)
@@ -24,22 +28,17 @@
  *                  - Truncation with ellipsis support
  *                  - Shared event handlers (reduced closure allocation)
  *
- *   @optimizations - Cached IsLast flag (no #self.Lines every frame)
- *                  - Cached DataLower for string sorting (no repeated lower())
- *                  - Shared event handler functions (reduced memory)
- *                  - Batch line state updates via UpdateLineStates()
- *
- *   @api           list:AddColumn(name, options) - Define table columns
+ *   @api           
+ *                  list:AddColumn(name, options) - Define table columns
  *                  list:AddLine(...) - Add data rows
  *                  list:SortByColumn(index, desc) - Sort by column
  *                  list.OnRowSelected(line, selected) - Selection callback
  *                  list.OnRowRightClick(line) - Right-click callback
  *
- *   @compatibility DanLib 3.0.0+ | GMod 2024+
- *   @performance   60+ FPS with 1000+ rows | 20% faster sorting | 30% less memory
- *   @license       MIT License
- *   @repository    https://github.com/denchik5133
- *   @notes         Part of DanLib UI component library. Uses DanLib.UI.Scroll for smooth scrolling.
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
@@ -218,13 +217,13 @@ function LISTVIEW:Init()
     self.Padding = DBase:Scale(10)
     self.ScrollBarSpacing = DBase:Scale(4)
     
-    self.Columns = {}
-    self.Lines = {}
+    self.Columns = { }
+    self.Lines = { }
     self.SortColumn = nil
     self.SortDescending = false
-    self.SelectedLines = {}
+    self.SelectedLines = { }
     self.MultiSelect = false
-    self.AutoWidthColumns = {}
+    self.AutoWidthColumns = { }
     self.AlternatingRows = true
     
     -- Header
@@ -274,7 +273,7 @@ end
 --   -- Sortable column
 --   list:AddColumn('Age', { sortable = true, align = TEXT_ALIGN_CENTER })
 function LISTVIEW:AddColumn(name, options)
-    options = options or {}
+    options = options or { }
     
     local column = {
         Name = name,
@@ -341,8 +340,8 @@ end
 --- Removes all columns from the ListView.
 -- This also clears auto-width column tracking.
 function LISTVIEW:ClearColumns()
-    self.Columns = {}
-    self.AutoWidthColumns = {}
+    self.Columns = { }
+    self.AutoWidthColumns = { }
 end
 
 --- Calculates and distributes width for auto-sized columns.
@@ -403,14 +402,14 @@ function LISTVIEW:AddLine(...)
     
     line.Data = data
     line.ListView = self
-    line.Cells = {}
+    line.Cells = { }
     line.Selected = false
     line.ID = #self.Lines + 1
     line.VisualIndex = #self.Lines + 1
     line.IsLast = false
     
     -- Cache lowercase strings for faster sorting
-    line.DataLower = {}
+    line.DataLower = { }
     for i, v in _ipairs(data) do
         if (_type(v) == 'string') then
             line.DataLower[i] = _lower(v)
@@ -533,8 +532,8 @@ function LISTVIEW:Clear()
             line:Remove()
         end
     end
-    self.Lines = {}
-    self.SelectedLines = {}
+    self.Lines = { }
+    self.SelectedLines = { }
 end
 
 --- Enables or disables multi-row selection.
@@ -557,7 +556,7 @@ function LISTVIEW:SelectItem(line, forceSelection)
     
     if (forceSelection or not line.Selected) then
         line.Selected = true
-        table.insert(self.SelectedLines, line)
+        DTable:Add(self.SelectedLines, line)
         
         if self.OnRowSelected then
             self:OnRowSelected(line, true)
@@ -574,7 +573,7 @@ function LISTVIEW:OnLineSelected(line)
         for _, l in _ipairs(self.Lines) do
             l.Selected = false
         end
-        self.SelectedLines = {}
+        self.SelectedLines = { }
     end
     
     line.Selected = not line.Selected
@@ -612,7 +611,7 @@ function LISTVIEW:ClearSelection()
     for _, line in _ipairs(self.Lines) do
         line.Selected = false
     end
-    self.SelectedLines = {}
+    self.SelectedLines = { }
 end
 
 --- Gets the currently sorted column index.

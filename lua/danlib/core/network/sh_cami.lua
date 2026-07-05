@@ -1,41 +1,39 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     CAMI
+ *   @license
+ *                  CAMI - Common Admin Mod Interface.
+ *                  Copyright 2020 CAMI Contributors
+ *                     
+ *                  Makes admin mods intercompatible and provides an abstract privilege interface
+ *                  for third party addons.
+ *                     
+ *                  Follows the specification on this page:
+ *                  https://github.com/glua/CAMI/blob/master/README.md
+ *                     
+ *                  Permission is hereby granted, free of charge, to any person obtaining a copy of this softwareand associated documentation
+ *                  files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use,
+ *                  copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ *                  Software is furnished to do so, subject to the following conditions:
+ *                  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *                     
+ *                  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+ *                  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ *                  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+ *                  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
- */
-
-
-/***
- *   CAMI - Common Admin Mod Interface.
- *   Copyright 2020 CAMI Contributors
- *
- *   Makes admin mods intercompatible and provides an abstract privilege interface
- *   for third party addons.
- *
- *   Follows the specification on this page:
- *   https://github.com/glua/CAMI/blob/master/README.md
- *
- *   Permission is hereby granted, free of charge, to any person obtaining a copy of this softwareand associated documentation
- *   files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use,
- *   copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
- *   Software is furnished to do so, subject to the following conditions:
- *   The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
- *   INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
- *   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
- *   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 
@@ -46,9 +44,8 @@ if (CAMI and CAMI.Version >= version) then
     return
 end
 
-CAMI = CAMI or {}
+CAMI = CAMI or { }
 CAMI.Version = version
-
 
 --- @class CAMI_USERGROUP
 --- defines the charactaristics of a usergroup
@@ -61,8 +58,7 @@ CAMI.Version = version
 --- @field Name string @The name of the privilege
 --- @field MinAccess "'user'" | "'admin'" | "'superadmin'" @Default group that should have this privilege
 --- @field Description string | nil @Optional text describing the purpose of the privilege
-local CAMI_PRIVILEGE = {}
-
+local CAMI_PRIVILEGE = { }
 
 --- Optional function to check if a player has access to this privilege
 --- (and optionally execute it on another player)
@@ -73,7 +69,6 @@ local CAMI_PRIVILEGE = {}
 --- @return boolean @If they can or not
 --- @return string | nil @Optional reason
 function CAMI_PRIVILEGE:HasAccess(actor, target) end
-
 
 --- Contains the registered CAMI_USERGROUP usergroup structures.
 --- Indexed by usergroup name.
@@ -96,12 +91,10 @@ local usergroups = CAMI.GetUsergroups and CAMI.GetUsergroups() or {
     }
 }
 
-
 --- Contains the registered CAMI_PRIVILEGE privilege structures.
 --- Indexed by privilege name.
 --- @type CAMI_PRIVILEGE[]
-local privileges = CAMI.GetPrivileges and CAMI.GetPrivileges() or {}
-
+local privileges = CAMI.GetPrivileges and CAMI.GetPrivileges() or { }
 
 --- Registers a usergroup with CAMI.
 ---
@@ -111,13 +104,14 @@ local privileges = CAMI.GetPrivileges and CAMI.GetPrivileges() or {}
 --- @param source any @Identifier for your own admin mod. Can be anything.
 --- @return CAMI_USERGROUP @The usergroup given as an argument
 function CAMI.RegisterUsergroup(usergroup, source)
-    if (source) then usergroup.CAMI_Source = tostring(source) end
+    if (source) then
+        usergroup.CAMI_Source = tostring(source)
+    end
     usergroups[usergroup.Name] = usergroup
 
     hook.Call('CAMI.OnUsergroupRegistered', nil, usergroup, source)
     return usergroup
 end
-
 
 --- Unregisters a usergroup from CAMI. This will call a hook that will notify
 --- all other admin mods of the removal.
@@ -130,7 +124,9 @@ end
 --- @param source any @Identifier for your own admin mod. Can be anything.
 --- @return boolean @Whether the unregistering succeeded.
 function CAMI.UnregisterUsergroup(usergroupName, source)
-    if (not usergroups[usergroupName]) then return false end
+    if (not usergroups[usergroupName]) then
+        return false
+    end
 
     local usergroup = usergroups[usergroupName]
     usergroups[usergroupName] = nil
@@ -139,13 +135,11 @@ function CAMI.UnregisterUsergroup(usergroupName, source)
     return true
 end
 
-
 --- Retrieves all registered usergroups.
 --- @return CAMI_USERGROUP[] @Usergroups indexed by their names.
 function CAMI.GetUsergroups()
     return usergroups
 end
-
 
 --- Receives information about a usergroup.
 --- @param usergroupName string
@@ -153,7 +147,6 @@ end
 function CAMI.GetUsergroup(usergroupName)
     return usergroups[usergroupName]
 end
-
 
 --- Checks to see if potentialAncestor is an ancestor of usergroupName.
 --- All usergroups are ancestors of themselves.
@@ -166,7 +159,9 @@ end
 --- @return boolean @Whether usergroupName inherits potentialAncestor.
 function CAMI.UsergroupInherits(usergroupName, potentialAncestor)
     repeat
-        if (usergroupName == potentialAncestor) then return true end
+        if (usergroupName == potentialAncestor) then
+            return true
+        end
         usergroupName = usergroups[usergroupName] and usergroups[usergroupName].Inherits or usergroupName
     until not usergroups[usergroupName] or usergroups[usergroupName].Inherits == usergroupName
 
@@ -174,7 +169,6 @@ function CAMI.UsergroupInherits(usergroupName, potentialAncestor)
     -- usergroup isn't registered.
     return usergroupName == potentialAncestor or potentialAncestor == 'user'
 end
-
 
 --- Find the base group a usergroup inherits from.
 ---
@@ -186,7 +180,9 @@ end
 --- @param usergroupName string @The name of the usergroup
 --- @return "'user'" | "'admin'" | "'superadmin'" @The name of the root usergroup
 function CAMI.InheritanceRoot(usergroupName)
-    if (not usergroups[usergroupName]) then return end
+    if (not usergroups[usergroupName]) then
+        return
+    end
 
     local inherits = usergroups[usergroupName].Inherits
     while inherits ~= usergroups[usergroupName].Inherits do
@@ -195,7 +191,6 @@ function CAMI.InheritanceRoot(usergroupName)
     
     return usergroupName
 end
-
 
 --- Registers an addon privilege with CAMI.
 ---
@@ -209,7 +204,6 @@ function CAMI.RegisterPrivilege(privilege)
     return privilege
 end
 
-
 --- Unregisters a privilege from CAMI.
 --- This will call a hook that will notify any admin mods of the removal.
 ---
@@ -217,7 +211,9 @@ end
 --- @param privilegeName string @The name of the privilege.
 --- @return boolean @Whether the unregistering succeeded.
 function CAMI.UnregisterPrivilege(privilegeName)
-    if (not privileges[privilegeName]) then return false end
+    if (not privileges[privilegeName]) then
+        return false
+    end
 
     local privilege = privileges[privilegeName]
     privileges[privilegeName] = nil
@@ -225,7 +221,6 @@ function CAMI.UnregisterPrivilege(privilegeName)
     hook.Call('CAMI.OnPrivilegeUnregistered', nil, privilege)
     return true
 end
-
 
 --- Retrieves all registered privileges.
 --- @return CAMI_PRIVILEGE[] @All privileges indexed by their names.
@@ -240,27 +235,31 @@ function CAMI.GetPrivilege(privilegeName)
     return privileges[privilegeName]
 end
 
-
 -- Default access handler
 local defaultAccessHandler = {
     ['CAMI.PlayerHasAccess'] = function(_, actorPly, privilegeName, callback, targetPly, extraInfoTbl)
         -- The server always has access in the fallback
-        if (not IsValid(actorPly)) then return callback(true, 'Fallback.') end
+        if (not IsValid(actorPly)) then
+            return callback(true, 'Fallback.')
+        end
 
         local priv = privileges[privilegeName]
         local fallback = extraInfoTbl and (not extraInfoTbl.Fallback and actorPly:IsAdmin() or extraInfoTbl.Fallback == 'user' and true or extraInfoTbl.Fallback == 'admin' and actorPly:IsAdmin() or extraInfoTbl.Fallback == 'superadmin' and actorPly:IsSuperAdmin())
 
-        if (not priv) then return callback(fallback, 'Fallback.') end
-        local hasAccess = priv.MinAccess == 'user' or priv.MinAccess == 'admin' and actorPly:IsAdmin() or priv.MinAccess == 'superadmin' and actorPly:IsSuperAdmin()
+        if (not priv) then
+            return callback(fallback, 'Fallback.')
+        end
 
-        if (hasAccess and priv.HasAccess) then hasAccess = priv:HasAccess(actorPly, targetPly) end
+        local hasAccess = priv.MinAccess == 'user' or priv.MinAccess == 'admin' and actorPly:IsAdmin() or priv.MinAccess == 'superadmin' and actorPly:IsSuperAdmin()
+        if (hasAccess and priv.HasAccess) then
+            hasAccess = priv:HasAccess(actorPly, targetPly)
+        end
         callback(hasAccess, 'Fallback.')
     end,
     ['CAMI.SteamIDHasAccess'] = function(_, _, _, callback)
         callback(false, "No information available.")
     end
 }
-
 
 --- @class CAMI_ACCESS_EXTRA_INFO
 --- @field Fallback "'user'" | "'admin'" | "'superadmin'" @Fallback status for if the privilege doesn't exist. Defaults to `admin`.
@@ -290,7 +289,10 @@ function CAMI.PlayerHasAccess(actorPly, privilegeName, callback, targetPly, extr
 
     hook.Call('CAMI.PlayerHasAccess', defaultAccessHandler, actorPly, privilegeName, callback_, targetPly, extraInfoTbl)
 
-    if (callback ~= nil) then return end
+    if (callback ~= nil) then
+        return
+    end
+
     if (hasAccess == nil) then
         local err = [[The function CAMI.PlayerHasAccess was used to find out
         whether Player %s has privilege "%s", but an admin mod did not give an
@@ -301,7 +303,6 @@ function CAMI.PlayerHasAccess(actorPly, privilegeName, callback, targetPly, extr
     return hasAccess, reason
 end
 
-
 --- Get all the players on the server with a certain privilege
 --- (and optionally who can execute it on targetPly)
 ---
@@ -311,14 +312,19 @@ end
 --- @param targetPly GPlayer | nil @Optional - target for if the privilege effects another player (eg kick/ban)
 --- @param extraInfoTbl CAMI_ACCESS_EXTRA_INFO | nil @Table of extra information for the admin mod
 function CAMI.GetPlayersWithAccess(privilegeName, callback, targetPly, extraInfoTbl)
-    local allowedPlys = {}
+    local allowedPlys = { }
     local allPlys = player.GetAll()
     local countdown = #allPlys
 
     local function onResult(ply, hasAccess, _)
         countdown = countdown - 1
-        if hasAccess then table.insert(allowedPlys, ply) end
-        if (countdown == 0) then callback(allowedPlys) end
+        if hasAccess then
+            table.insert(allowedPlys, ply)
+        end
+
+        if (countdown == 0) then
+            callback(allowedPlys)
+        end
     end
 
     for _, ply in ipairs(allPlys) do
@@ -327,7 +333,6 @@ function CAMI.GetPlayersWithAccess(privilegeName, callback, targetPly, extraInfo
         end, targetPly, extraInfoTbl)
     end
 end
-
 
 --- @class CAMI_STEAM_ACCESS_EXTRA_INFO
 --- @field IgnoreImmunity boolean @Ignore any immunity mechanisms an admin mod might have.
@@ -346,7 +351,6 @@ function CAMI.SteamIDHasAccess(actorSteam, privilegeName, callback, targetSteam,
     hook.Call('CAMI.SteamIDHasAccess', defaultAccessHandler, actorSteam, privilegeName, callback, targetSteam, extraInfoTbl)
 end
 
-
 --- Signify that your admin mod has changed the usergroup of a player. This
 --- function communicates to other admin mods what it thinks the usergroup
 --- of a player should be.
@@ -359,7 +363,6 @@ end
 function CAMI.SignalUserGroupChanged(ply, old, new, source)
     hook.Call('CAMI.PlayerUsergroupChanged', nil, ply, old, new, source)
 end
-
 
 --- Signify that your admin mod has changed the usergroup of a disconnected
 --- player. This communicates to other admin mods what it thinks the usergroup

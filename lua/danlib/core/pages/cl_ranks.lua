@@ -1,45 +1,41 @@
 /***
  *   @addon         DanLib
- *   @version       2.0.0
+ *   @component     Ranks Page
+ *   @license       MIT License
+ *   @version       2.0.1
  *   @release_date  01/12/2024
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
  *   @description   Client-side UI for rank management system with permissions,
  *                  user list, and advanced filtering capabilities
  *   
- *   @changelog     2.0.0:
- *                  - Implemented rank caching system for improved performance
- *                  - Added debounced search for user filtering (300ms delay)
- *                  - Optimized Paint functions with localized function calls
- *                  - Added input validation for rank names and IDs
- *                  - Improved permission auto-assignment on rank creation
- *                  - Enhanced user list with real-time search (Name/SteamID/SteamID64)
- *                  - Added rank order management with visual feedback
- *                  - Implemented access control caching for better UX
- *                  - Fixed checkbox display issues in permission editor
- *                  - Added offline player rank management support
- *                  - Centralized constants for UI consistency
- *   
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
 local DBase = DanLib.Func
 local ui = DanLib.UI
+local DNet = DanLib.Net
 local DTable = DanLib.Table
 local DUtils = DanLib.Utils
-local DNetwork = DanLib.Network
 local RANK = DanLib.UiPanel()
-local DTheme = DanLib.Config.Theme
+local DPlayerUtil = DanLib.PlayerUtil
+local DNetworkUtil = DanLib.NetworkUtil
 local DMaterial = DanLib.Config.Materials
 local DCustomUtils = DanLib.CustomUtils.Create
 
 -- Optimizing frequent calls
 local _IsValid = IsValid
+local _type = type
 local _pairs = pairs
 local _ipairs = ipairs
 local _CurTime = CurTime
@@ -72,7 +68,29 @@ local rankDataCache = nil
 local rankDataCacheTime = 0
 local CACHE_DURATION = 1 -- Cache updates every second
 
--- AUXILIARY FUNCTIONS
+-- GLOBAL RANK UPDATES HANDLER
+-- Stores all active rank panels
+DanLib.ActiveRankPanels = DanLib.ActiveRankPanels or { }
+
+-- ONE global receiver for ALL panels (registered only once)
+if (not DanLib._RankDataReceiverRegistered) then
+    DanLib._RankDataReceiverRegistered = true
+    
+    DNet:On('DanLib.SendRankData', function()
+        local allRankData = DNet:Tbl()
+        
+        -- Updating ALL open rank panels
+        for panel, _ in _pairs(DanLib.ActiveRankPanels) do
+            if (_IsValid(panel) and _IsValid(panel.userScroll)) then
+                panel.lastRankData = allRankData
+                panel:UpdateUserList(panel.userScroll, allRankData)
+            else
+                -- Removing dead panels from the registry
+                DanLib.ActiveRankPanels[panel] = nil
+            end
+        end
+    end)
+end
 
 --- Debounce function for search optimization
 local function CreateDebounce(delay)
@@ -81,7 +99,7 @@ local function CreateDebounce(delay)
         if timer then
             timer:Stop()
         end
-        timer = timer.Simple(delay, callback)
+        timer = DanLib.Timer:Simple(delay, callback)
     end
 end
 
@@ -174,12 +192,17 @@ end
 
 --- Adding a new rank
 function RANK:add_new()
-    if self:CheckAccess() then return end
+    if self:CheckAccess() then
+        return
+    end
+
     local values = self:GetRanksValues()
     local maxRanks = DanLib.BaseConfig.RanksMax or 15
     
     if (DTable:Count(values) >= maxRanks) then
-        DBase:QueriesPopup('ERROR', DBase:L('#rank.limit', { limit = maxRanks }), nil, nil, nil, nil, true)
+        DBase:QueriesPopup('ERROR', DBase:L('#rank.limit', {
+            limit = maxRanks
+        }), nil, nil, nil, nil, true)
         return
     end
 
@@ -198,11 +221,11 @@ function RANK:add_new()
             return
         end
         -- Auto-assigning permissions
-        local defaultPermissions = {}
+        local defaultPermissions = { }
         local autoAssignedCount = 0
         
         for permKey, permData in _pairs(DanLib.BaseConfig.Permissions) do
-            if (type(permData) == 'table' and permData.AutoAssignAll == true) then
+            if (_type(permData) == 'table' and permData.AutoAssignAll == true) then
                 defaultPermissions[permKey] = true
                 autoAssignedCount = autoAssignedCount + 1
             end
@@ -235,11 +258,15 @@ function RANK:FillPanel()
     self:SetPopupWide(width)
     self:SetExtraHeight(height)
     self:SetSettingsFunc('Update', nil, function()
-        if self:CheckAccess() then return end
-        DNetwork:Start('DanLib.RequestRankData')
-        DNetwork:SendToServer()
+        if self:CheckAccess() then
+            return
+        end
+        DNet:Open('DanLib.RequestRankData'):Up()
     end)
     self:ApplyEvent('OnClose', function()
+        -- Removing the panel from the global registry
+        DanLib.ActiveRankPanels[self] = nil
+        
         -- Clearing the local cache of the panel
         self._accessCheckCache = nil
         self._sortedRanksCache = nil
@@ -273,7 +300,7 @@ function RANK:Refresh()
 
     -- Cached sorting
     if (not self._sortedRanksCache or self._lastRefreshTime ~= rankDataCacheTime) then
-        local sorted = {}
+        local sorted = { }
         for k, v in _pairs(values) do
             DTable:Add(sorted, { v.Order, k })
         end
@@ -351,7 +378,7 @@ function RANK:DrawMoveButtonEffect(sl, h, icon, direction)
         local w = sl:GetWide()
         local boxH = h * clickPercent
         DUtils:DrawRoundedMask(6, 0, 0, w, h, function()
-            DUtils:DrawRect(0, direction == 'up' and h - boxH or 0, w, boxH, ColorAlpha(DTheme['Red'], 100))
+            DUtils:DrawRect(0, direction == 'up' and h - boxH or 0, w, boxH, DBase:GetColor('Red', 100))
         end)
     end
 
@@ -389,22 +416,30 @@ function RANK:CreateRankActionButton(Panel, Key, values, RankColor, name)
     local size = CONSTANTS.BUTTON_SIZE
     local topMargin = (CONSTANTS.PANEL_HEIGHT - size) / 2
     local buttons = {
-        { Name = 'Edit name', Icon = DMaterial['Edit'], Col = DTheme['Blue'], Func = function() 
-            if self:CanEditRank(Key) then return end
+        { Name = 'Edit name', Icon = DMaterial['Edit'], Col = DBase:GetColor('Blue'), Func = function() 
+            if self:CanEditRank(Key) then
+                return
+            end
             self:EditRankName(Key, values, name) 
         end },
         { Name = 'Permission', Icon = 'cPzyO3T', Func = function() 
-            if self:CanEditRank(Key) then return end
+            if self:CanEditRank(Key) then
+                return
+            end
             self:editPopup(Key, values) 
         end },
         { Name = 'Color', Icon = 'PHLbyno', Func = function() 
-            if self:CanEditRank(Key) then return end
+            if self:CanEditRank(Key) then
+                return
+            end
             self:ChangeRankColor(Key, values) 
         end },
-        { Name = DBase:L('#delete'), Icon = DMaterial['Delete'], Col = DTheme['Red'],
+        { Name = DBase:L('#delete'), Icon = DMaterial['Delete'], Col = DBase:GetColor('Red'),
           hide = (Key == 'rank_owner'),
           Func = function() 
-            if self:CanEditRank(Key) then return end
+            if self:CanEditRank(Key) then
+                return
+            end
             self:DeleteRank(Key, values) 
         end }
     }
@@ -415,7 +450,9 @@ function RANK:CreateRankActionButton(Panel, Key, values, RankColor, name)
         icon = { DMaterial['Edit'] },
         tooltip = { DBase:L('#edit'), nil, nil, TOP },
         click = function(sl)
-            if self:CheckAccess() then return end
+            if self:CheckAccess() then
+                return
+            end
 
             local context = DBase:UIContextMenu(self)
             for _, v in _ipairs(buttons) do
@@ -523,7 +560,7 @@ function RANK:editPopup(Key, values)
     local playerPermissions = LocalPlayer():get_danlib_rank_permissions()
 
     -- Sorting permissions
-    local sorted = {}
+    local sorted = { }
     for k, v in _pairs(DanLib.BaseConfig.Permissions) do
         DTable:Add(sorted, { k, k })
     end
@@ -532,7 +569,7 @@ function RANK:editPopup(Key, values)
     for k, v in _pairs(sorted) do
         local mKey = v[2]
         local permData = DanLib.BaseConfig.Permissions[mKey]
-        local title = type(permData) == 'table' and (permData.Description or 'No description') or (permData or 'No description')
+        local title = _type(permData) == 'table' and (permData.Description or 'No description') or (permData or 'No description')
 
         local panel = DCustomUtils(fieldsBack)
         panel:PinMargin(TOP, 8, 8, 6)
@@ -553,8 +590,8 @@ function RANK:editPopup(Key, values)
         end
 
         function CheckBox:OnChange(value)
-            values[Key] = values[Key] or {}
-            values[Key].Permission = values[Key].Permission or {}
+            values[Key] = values[Key] or { }
+            values[Key].Permission = values[Key].Permission or { }
             values[Key].Permission[mKey] = value
             DBase:SetConfigVariable('BASE', 'Ranks', values)
         end
@@ -577,14 +614,21 @@ function RANK:UsersList()
     searchEntry:SetBackText('Search by Name, SteamID, or SteamID64...')
     
     self.searchQuery = ''
+    
+    -- Saving the link to the callback panel
     local rankPanel = self
     
     -- Debounce for optimization
     local searchDebounce = CreateDebounce(CONSTANTS.SEARCH_DEBOUNCE)
     searchEntry:ApplyEvent('OnValueChange', function(sl, value)
+        -- Checking that the panel exists
+        if (not _IsValid(rankPanel)) then
+            return
+        end
+        
         rankPanel.searchQuery = _stringLower(value or '')
         searchDebounce(function()
-            if rankPanel.lastRankData then
+            if (_IsValid(rankPanel) and rankPanel.lastRankData) then
                 rankPanel:UpdateUserList(rankPanel.userScroll, rankPanel.lastRankData)
             end
         end)
@@ -596,8 +640,7 @@ function RANK:UsersList()
         wide = 130,
         text = { 'Refresh List', nil, nil, nil, DBase:Theme('text') },
         click = function()
-            DNetwork:Start('DanLib.RequestRankData')
-            DNetwork:SendToServer()
+            DNet:Open('DanLib.RequestRankData'):Up()
         end
     })
 
@@ -605,20 +648,14 @@ function RANK:UsersList()
     local scroll = DCustomUtils(userPanel, 'DanLib.UI.Scroll')
     scroll:Pin(nil, 6)
 
-    self.userList = {}
+    self.userList = { }
     self.userScroll = scroll
-    self.lastRankData = {}
+    self.lastRankData = { }
 
-    -- Getting user data
-    DNetwork:Receive('DanLib.SendRankData', function()
-        local allRankData = DNetwork:ReadTable()
-        self.lastRankData = allRankData
-        self:UpdateUserList(scroll, allRankData)
-    end)
-
+    -- Registering the panel in the global registry
+    DanLib.ActiveRankPanels[self] = true
     -- Initial request
-    DNetwork:Start('DanLib.RequestRankData')
-    DNetwork:SendToServer()
+    DNet:Open('DanLib.RequestRankData'):Up()
 end
 
 --- Updating the user list
@@ -630,10 +667,10 @@ function RANK:UpdateUserList(scroll, allRankData)
         end
     end
 
-    self.userList = {}
+    self.userList = { }
 
     -- Sorting users
-    local sortedUsers = {}
+    local sortedUsers = { }
     for steamID64, data in _pairs(allRankData) do
         DTable:Add(sortedUsers, {
             steamID64 = steamID64,
@@ -647,18 +684,18 @@ function RANK:UpdateUserList(scroll, allRankData)
     end)
 
     local searchQuery = self.searchQuery or ''
-    local ranks = DanLib.ConfigMeta.BASE:GetValue('Ranks') or {}
+    local ranks = DanLib.ConfigMeta.BASE:GetValue('Ranks') or { }
 
     -- Displaying users
     for _, userData in _ipairs(sortedUsers) do
         local steamID64 = userData.steamID64
         local data = userData.data
         
-        local pPlayer = player.GetBySteamID64(steamID64)
+        local pPlayer = DPlayerUtil:GetBySteamID64(steamID64)
         local isOnline = _IsValid(pPlayer)
         
         local name = steamworks.GetPlayerName(steamID64) or 'Unknown'
-        local steamID = util.SteamIDFrom64(steamID64) or ''
+        local steamID = DNetworkUtil:SteamIDFrom64(steamID64) or ''
         
         -- Filtering by search
         if searchQuery ~= '' then
@@ -711,13 +748,19 @@ function RANK:UpdateUserList(scroll, allRankData)
                     end
 
                     local context = DBase:UIContextMenu(self)
-                    context:Option(DBase:L('#rank.copy.name'), nil, nil, function() DBase:ClipboardText(rankName) end)
-                    context:Option(DBase:L('#copy_id'), nil, nil, function() DBase:ClipboardText(steamID64) end)
-                    context:Option('Copy SteamID', nil, nil, function() DBase:ClipboardText(steamID) end)
+                    context:Option(DBase:L('#rank.copy.name'), nil, nil, function()
+                        DBase:ClipboardText(rankName)
+                    end)
+                    context:Option(DBase:L('#copy_id'), nil, nil, function()
+                        DBase:ClipboardText(steamID64)
+                    end)
+                    context:Option('Copy SteamID', nil, nil, function()
+                        DBase:ClipboardText(steamID)
+                    end)
                     
                     -- Change the rank (for online and offline)
                     context:Option(DBase:L('#edit.rank'), nil, nil, function()
-                        local options = {}
+                        local options = { }
                         for k, v in _pairs(ranks or { }) do
                             options[k] = v.Name
                         end
@@ -728,26 +771,24 @@ function RANK:UpdateUserList(scroll, allRankData)
                             end
                             
                             if isOnline then
-                                DNetwork:Start('DanLib.NetSetRank')
-                                DNetwork:WriteEntity(pPlayer)
-                                DNetwork:WriteString(selectedRankID)
-                                DNetwork:SendToServer()
+                                DNet:Open('DanLib.NetSetRank')
+                                    :Ent(pPlayer)
+                                    :Str(selectedRankID)
+                                    :Up()
                             else
-                                DNetwork:Start('DanLib.NetSetOfflineRank')
-                                DNetwork:WriteString(steamID64)
-                                DNetwork:WriteString(selectedRankID)
-                                DNetwork:SendToServer()
+                                DNet:Open('DanLib.NetSetOfflineRank')
+                                    :Str(steamID64)
+                                    :Str(selectedRankID)
+                                    :Up()
                             end
                         end)
                     end)
                     
                     -- Delete data (offline only)
                     if (not isOnline) then
-                        context:Option('Delete Player Data', DTheme['Red'], DMaterial['Delete'], function()
+                        context:Option('Delete Player Data', DBase:GetColor('Red'), DMaterial['Delete'], function()
                             DBase:QueriesPopup('DELETION', 'Are you sure you want to delete data for ' .. name .. '?', nil, function()
-                                DNetwork:Start('DanLib.NetDeleteOfflinePlayer')
-                                DNetwork:WriteString(steamID64)
-                                DNetwork:SendToServer()
+                                DNet:Open('DanLib.NetDeleteOfflinePlayer'):Str(steamID64):Up()
                             end)
                         end)
                     end

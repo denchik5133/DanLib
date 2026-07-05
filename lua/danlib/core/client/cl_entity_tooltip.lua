@@ -1,10 +1,13 @@
 /***
  *   @addon         DanLib
- *   @component     SetEntityTooltip
- *   @version       2.0.0
+ *   @component     EntityTooltip
+ *   @license       MIT License
+ *   @version       2.0.1
  *   @release_date  28/11/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
@@ -14,24 +17,22 @@
  *                  - Callback events (OnHoverStart, OnHoverEnd, onUpdate)
  *                  - Caching markup and optimizing rendering
  *                  - Object pooling to minimize GC
- *   
- *   @performance   - Pre-calculation of fade parameters
- *                  - Object Color Pooling (0 GC)
- *                  - Caching markup text
- *                  - Early exit from invisible tooltip processing
- *                  - Reuse of candidates tables
  *
- *   @compatibility DanLib 3.0.0+ | GMod 2024+
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
 local DBase = DanLib.Func
+local DHook = DanLib.Hook
 local DUtils = DanLib.Utils
 local DTable = DanLib.Table
-DanLib.UI = DanLib.UI or {}
-DanLib.UI.Tooltips = DanLib.UI.Tooltips or {}
+
+DanLib.UI = DanLib.UI or { }
+DanLib.UI.Tooltips = DanLib.UI.Tooltips or { }
 local DTooltips = DanLib.UI.Tooltips
 
 -- Function cache
@@ -55,7 +56,7 @@ local _tablesort = table.sort
 local _ErrorNoHalt = ErrorNoHalt
 
 -- Pool for Color objects (avoid creating new objects every frame)
-local colorPool = {}
+local colorPool = { }
 local colorPoolIndex = 0
 local MAX_COLOR_POOL = 20
 
@@ -121,10 +122,10 @@ local RENDER_CONSTANTS = {
 }
 
 -- GLOBAL VARIABLES
-local tooltipRegistry = {} -- The registry of all registered tooltips
+local tooltipRegistry = { } -- The registry of all registered tooltips
 
 -- LOCAL VARIABLES
-local activeTooltips = {} -- Active tooltips in the current frame
+local activeTooltips = { } -- Active tooltips in the current frame
 local lastUpdate = 0 -- Last update time
 local lastLookingEntity = nil -- The entity that the player is looking at
 
@@ -141,7 +142,7 @@ local function _updateScreenSize()
 end
 
 -- THE ENTITY META-TABLE
-local METAENTITY = FindMetaTable('Entity')
+local DMetaEntity = DanLib.MetaEntity
 
 --- Install tooltip for Entity
 -- @param data (table): Table with tooltip parameters
@@ -168,7 +169,7 @@ local METAENTITY = FindMetaTable('Entity')
 --     highlightColor = Color(255, 0, 0, 150),
 --     OnHoverStart = function(ent, ply) print('Looking!') end
 -- })
-function METAENTITY:SetEntityTooltip(data)
+function DMetaEntity:SetEntityTooltip(data)
     if (not _IsValid(self)) then
         return
     end
@@ -235,14 +236,14 @@ end
 
 --- Remove tooltip from Entity
 -- @usage entity:RemoveEntityTooltip()
-function METAENTITY:RemoveEntityTooltip()
+function DMetaEntity:RemoveEntityTooltip()
     tooltipRegistry[self] = nil
 end
 
 --- Get tooltip Entity data
 -- @return (table|nil): A table with tooltip or nil data if not installed
 -- @usage local data = entity:GetEntityTooltipData()
-function METAENTITY:GetEntityTooltipData()
+function DMetaEntity:GetEntityTooltipData()
     return tooltipRegistry[self]
 end
 
@@ -250,7 +251,7 @@ end
 -- @param data (table): The table with the parameters for updating (see SetEntityTooltip)
 -- @usage entity:UpdateEntityTooltip({ title = 'New Title' })
 -- @usage entity:UpdateEntityTooltip({ distance = 200, highlight = true })
-function METAENTITY:UpdateEntityTooltip(data)
+function DMetaEntity:UpdateEntityTooltip(data)
     if (not _IsValid(self)) then
         return
     end
@@ -305,7 +306,7 @@ end
 --- Check if the tooltip is installed on the Entity
 -- @return (boolean): true if tooltip is installed
 -- @usage if entity:HasEntityTooltip() then ... end
-function METAENTITY:HasEntityTooltip()
+function DMetaEntity:HasEntityTooltip()
     return tooltipRegistry[self] ~= nil
 end
 
@@ -316,7 +317,7 @@ end
 -- @param icon (string): The path to the icon
 -- @param color (Color): Header color
 -- @deprecated Use SetEntityTooltip instead
-function METAENTITY:SetCreateEntityToolTip(title, bool, text, icon, color)
+function DMetaEntity:SetCreateEntityToolTip(title, bool, text, icon, color)
     if (not _IsValid(self)) then
         return
     end
@@ -341,7 +342,7 @@ local function _triggerOnHoverEnd(ent, data, pPlayer)
 end
 
 -- Pool for reuse of candidates tables
-local candidatesPool = {}
+local candidatesPool = { }
 local pooledCandidates = 0
 
 --- Updating the active tooltip (internal function)
@@ -410,7 +411,7 @@ local function _updateActiveTooltips()
                         -- Reusing existing tables
                         pooledCandidates = pooledCandidates + 1
                         if (not candidatesPool[pooledCandidates]) then
-                            candidatesPool[pooledCandidates] = {}
+                            candidatesPool[pooledCandidates] = { }
                         end
                         
                         local candidate = candidatesPool[pooledCandidates]
@@ -560,20 +561,20 @@ local function _HUDPaintTooltips()
         _renderTooltip(candidate)
     end
 end
-DanLib.Hook:Add('HUDPaint', 'DanLib.EntityTooltips', _HUDPaintTooltips)
+DHook:Add('HUDPaint', 'DanLib.EntityTooltips', _HUDPaintTooltips)
 
 --- Cleaning up when deleting an Entity
 -- @param ent (Entity): Deleted Entity
 local function OnEntityRemoved(ent)
     tooltipRegistry[ent] = nil
 end
-DanLib.Hook:Add('EntityRemoved', 'DanLib.TooltipCleanup', OnEntityRemoved)
+DHook:Add('EntityRemoved', 'DanLib.TooltipCleanup', OnEntityRemoved)
 
 -- PUBLIC API
 
 --- Register a tooltip for an Entity
 -- @param ent (Entity): The entity for which the tooltip is installed
--- @param data (table): Tooltip parameters (see METAENTITY:SetEntityTooltip)
+-- @param data (table): Tooltip parameters (see DMetaEntity:SetEntityTooltip)
 -- @usage DanLib.UI.Tooltips:Register(entity, { title = 'Door' })
 function DTooltips:Register(ent, data)
     if _IsValid(ent) then
@@ -607,7 +608,7 @@ end
 --- Clear all registered tooltips
 -- @usage DanLib.UI.Tooltips:ClearAll()
 function DTooltips:ClearAll()
-    tooltipRegistry = {}
+    tooltipRegistry = { }
 end
 
 --- Get the Entity that the player is looking at
@@ -619,7 +620,7 @@ end
 
 --- Install tooltip en masse for all Entities of the specified class
 -- @param className (string): Name of the Entity class
--- @param data (table): Tooltip parameters (see METAENTITY:SetEntityTooltip)
+-- @param data (table): Tooltip parameters (see DMetaEntity:SetEntityTooltip)
 -- @usage DanLib.UI.Tooltips:RegisterClass('prop_physics', { title = 'Prop' })
 function DTooltips:RegisterClass(className, data)
     for _, ent in _ipairs(ents.FindByClass(className)) do
@@ -639,4 +640,3 @@ function DTooltips:SetConfig(key, value)
         CONFIG[key] = value
     end
 end
-

@@ -17,13 +17,22 @@
 
 
 
-
-DanLib = DanLib or {}
-local PANEL, _ = DanLib.UiPanel()
-local customUtils = DanLib.CustomUtils
-local base = DanLib.Func
-local utils = DanLib.Utils
+local DBase = DanLib.Func
+local DUtils = DanLib.Utils
 local UI = DanLib.UI
+local PANEL, _ = DanLib.UiPanel()
+local DNetworkUtil = DanLib.NetworkUtil
+local DCustomUtils = DanLib.CustomUtils.Create
+
+local _IsValid = IsValid
+local _Vector = Vector
+local _Angle = Angle
+local _pairs = pairs
+local _Color = Color
+local _RealTime = RealTime
+local _Clamp = math.Clamp
+local _SimpleText = draw.SimpleText
+local _strformat = string.format
 
 -- initialize
 function PANEL:Init()
@@ -105,58 +114,65 @@ function PANEL:Init()
     self.defaultModel = 'models/props_interiors/VendingMachineSoda01a.mdl'
 
     -- Subpanel creation
-    self.subPanel = customUtils.Create(self)
+    self.subPanel = DCustomUtils(self)
     self.subPanel:Pin()
 
     -- model panel
-    self.modelPanel = customUtils.Create(self.subPanel, 'DModelPanel')
+    self.modelPanel = DCustomUtils(self.subPanel, 'DModelPanel')
     self.modelPanel:Pin()
     self.modelPanel:SetModel(self.defaultModel)
     self.modelPanel:ApplyEvent('LayoutEntity', function(ent, sl)
     	if (not self.IsToggleAnimation) then
-	        sl:SetAngles(Angle(0, 0, 0))
+	        sl:SetAngles(_Angle(0, 0, 0))
 	        return
 	    end
 
 	    if self.modelPanel.bAnimated then self.modelPanel:RunAnimation() end
-	    sl:SetAngles(Angle(0, RealTime() * 10 % 360, 0))
+	    sl:SetAngles(_Angle(0, _RealTime() * 10 % 360, 0))
     end)
 	self.modelPanel:ApplyEvent('Think', function(sl)
         if (sl:GetModel() == self.defaultModel) then
 	        sl:SetFOV(62)
-	        sl:SetCamPos(Vector(187, -107, 93))
-	        sl:SetLookAt(Vector(20, 13, 13))
+	        sl:SetCamPos(_Vector(187, -107, 93))
+	        sl:SetLookAt(_Vector(20, 13, 13))
 	        return
 	    end
 	    sl:SetFOV(self.modelSetup['fov'].value)
-	    sl:SetCamPos(Vector(self.modelSetup['campos_x'].value, self.modelSetup['campos_y'].value, self.modelSetup['campos_z'].value))
-	    sl:SetLookAt(Vector(self.modelSetup['lookat_x'].value, self.modelSetup['lookat_y'].value, self.modelSetup['lookat_z'].value))
+	    sl:SetCamPos(_Vector(self.modelSetup['campos_x'].value, self.modelSetup['campos_y'].value, self.modelSetup['campos_z'].value))
+	    sl:SetLookAt(_Vector(self.modelSetup['lookat_x'].value, self.modelSetup['lookat_y'].value, self.modelSetup['lookat_z'].value))
     end)
 	self.modelPanel:ApplyEvent('PaintOver', function(sl, w, h)
 	    local posY = 10
-	    local label = Color(200, 200, 200, 255)
-	    local clr_value = Color(93, 180, 255, 255)
+	    local label = _Color(200, 200, 200, 255)
+	    local clr_value = _Color(93, 180, 255, 255)
 
 	    local sizeW, sizeH = w, h
-        utils:DrawRoundedMask(6, 0, 0, w, h, function()
-	       draw.TexturedQuad({ texture = surface.GetTextureID('gui/gradient_up'), color = Color(93, 180, 255, 60), x = 0, y = sizeH - 100, w = sizeW, h = 100 })
+        DUtils:DrawRoundedMask(6, 0, 0, w, h, function()
+	       draw.TexturedQuad({
+            texture = surface.GetTextureID('gui/gradient_up'),
+            color = _Color(93, 180, 255, 60),
+            x = 0,
+            y = sizeH - 100,
+            w = sizeW,
+            h = 100
+        })
         end)
 
-        local camPos = Vector(self.modelSetup['campos_x'].value, self.modelSetup['campos_y'].value, self.modelSetup['campos_z'].value)
-        local lookAt = Vector(self.modelSetup['lookat_x'].value, self.modelSetup['lookat_y'].value, self.modelSetup['lookat_z'].value)
+        local camPos = _Vector(self.modelSetup['campos_x'].value, self.modelSetup['campos_y'].value, self.modelSetup['campos_z'].value)
+        local lookAt = _Vector(self.modelSetup['lookat_x'].value, self.modelSetup['lookat_y'].value, self.modelSetup['lookat_z'].value)
         local fov = self.modelSetup['fov'].value
 
-        draw.SimpleText(string.format('Cam(%.1f, %.1f, %.1f)', camPos.x, camPos.y, camPos.z), self.defaultFont18, 15, 15, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-        draw.SimpleText(string.format('Look(%.1f, %.1f, %.1f)', lookAt.x, lookAt.y, lookAt.z), self.defaultFont18, 15, posY + 23, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-        draw.SimpleText(string.format('FOV: %s', self.modelSetup['fov'].value), self.defaultFont18, 15, posY + 43, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+        _SimpleText(_strformat('Cam(%.1f, %.1f, %.1f)', camPos.x, camPos.y, camPos.z), self.defaultFont18, 15, 15, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+        _SimpleText(_strformat('Look(%.1f, %.1f, %.1f)', lookAt.x, lookAt.y, lookAt.z), self.defaultFont18, 15, posY + 23, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+        _SimpleText(_strformat('FOV: %s', self.modelSetup['fov'].value), self.defaultFont18, 15, posY + 43, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 
-	    draw.SimpleText('Animations', self.defaultFont18, 45, posY + 74, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-	    draw.SimpleText('Show valid only', self.defaultFont18, 45, posY + 103, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+	    _SimpleText('Animations', self.defaultFont18, 45, posY + 74, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+	    _SimpleText('Show valid only', self.defaultFont18, 45, posY + 103, label, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 	end)
 
     self.modelPanel:ApplyEvent('OnMouseWheeled', function(_, delta)
         -- Changing the FOV based on mouse wheel movement
-        self.modelSetup['fov'].value = math.Clamp(self.modelSetup['fov'].value - delta * 5, 10, 180) -- Increase or decrease the multiplier to adjust the zoom speed
+        self.modelSetup['fov'].value = _Clamp(self.modelSetup['fov'].value - delta * 5, 10, 180) -- Increase or decrease the multiplier to adjust the zoom speed
     end)
 
     self.modelPanel:ApplyEvent('OnMouseReleased', function(panel, mcode)
@@ -165,7 +181,7 @@ function PANEL:Init()
         end
     end)
 
-    local CheckBox = base.CreateCheckbox(self.modelPanel)
+    local CheckBox = DBase.CreateCheckbox(self.modelPanel)
     CheckBox:SetPos(15, 80)
     CheckBox:SetSize(24, 24)
     CheckBox:SetValue(self.IsToggleAnimation and true or false)
@@ -174,7 +190,7 @@ function PANEL:Init()
         self.IsToggleAnimation = value
     end)
 
-    local CheckBox = base.CreateCheckbox(self.modelPanel)
+    local CheckBox = DBase.CreateCheckbox(self.modelPanel)
     CheckBox:SetPos(15, 110)
     CheckBox:SetSize(24, 24)
     CheckBox:SetValue(self.bIsValidOnly and true or false)
@@ -190,49 +206,47 @@ function PANEL:CreatePopout()
     local panelY = 15
     local panelWide = panelW * 0.7
 
-    if IsValid(self.subPanel.Popout) then
+    if _IsValid(self.subPanel.Popout) then
         self.subPanel.Popout:Remove()
     else
-        local popoutClose = customUtils.Create(self)
+        local popoutClose = DCustomUtils(self)
         popoutClose:Pin()
         popoutClose:ApplyAttenuation(0.2)
         popoutClose:SetCursor('hand')
-        -- popoutClose:ApplyBackground(Color(0, 0, 0, 150), 6)
-        -- popoutClose:ApplyBlur()
         popoutClose:ApplyEvent('OnMousePressed', function(sl)
             self.subPanel.Popout:MoveTo(panelX, panelY, 0.2, 0, -1, function()
-                if (IsValid(self.subPanel.Popout)) then
+                if _IsValid(self.subPanel.Popout) then
                     self.subPanel.Popout:Remove()
                 end
             end)
 
             sl:AlphaTo(0, 0.2, 0, function()
-                if IsValid(sl) then
+                if _IsValid(sl) then
                     sl:Remove()
                 end
             end)
         end)
 
-        self.subPanel.Popout = customUtils.Create(popoutClose)
+        self.subPanel.Popout = DCustomUtils(popoutClose)
         self.subPanel.Popout:SetSize(panelW, 500)
         self.subPanel.Popout:SetPos(panelX, panelY)
         self.subPanel.Popout:MoveTo((panelX) - (panelWide), panelY, 0.2)
-        self.subPanel.Popout:ApplyBackground(base:Theme('secondary_dark'), 6)
+        self.subPanel.Popout:ApplyBackground(DBase:Theme('secondary_dark'), 6)
         self.controlsPanel = self.subPanel.Popout
 
-        self.blockPanel = customUtils.Create(self.controlsPanel)
+        self.blockPanel = DCustomUtils(self.controlsPanel)
         self.blockPanel:Pin(TOP, 8)
         self.blockPanel:SetTall(35)
 
-        local TextEntry = DanLib.Func.CreateTextEntry(self.blockPanel)
+        local TextEntry = DBase.CreateTextEntry(self.blockPanel)
         TextEntry:PinMargin(nil, 5, 5, 4, 5)
         TextEntry:SetValue(self.defaultModel)
         TextEntry:ApplyEvent('OnEnter', function(sl)
             local val = sl:GetValue()
-            val = base:TrimWhitespace(val)
+            val = DBase:TrimWhitespace(val)
 
-            if IsValid(self.modelPanel) then
-                if self.bIsValidOnly and DanLib.NetworkUtil:IsValidModel(self.modelPanel:GetModel()) or not self.bIsValidOnly then
+            if _IsValid(self.modelPanel) then
+                if (self.bIsValidOnly and DNetworkUtil:IsValidModel(self.modelPanel:GetModel()) or not self.bIsValidOnly) then
                     self.modelPanel:SetModel(val)
                 else
                     self.modelPanel:SetModel(self.defaultModel)
@@ -241,7 +255,7 @@ function PANEL:CreatePopout()
         end)
 
         -- button clear
-        local buttonClear = DanLib.Func.CreateUIButton(self.blockPanel, {
+        DBase.CreateUIButton(self.blockPanel, {
             dock_indent = { RIGHT, 5, 5, 4, 5 },
             wide = 24,
             icon = { 'EkxU20l', 16 },
@@ -253,16 +267,16 @@ function PANEL:CreatePopout()
         })
 
         -- scroll panel
-        self.scrollPanel = customUtils.Create(self.controlsPanel, 'DanLib.UI.Scroll')
+        self.scrollPanel = DCustomUtils(self.controlsPanel, 'DanLib.UI.Scroll')
         self.scrollPanel:Pin(nil, 8)
 
         -- loop through modelSetup to create UI elements
-        for key, value in pairs(self.modelSetup) do
+        for key, value in _pairs(self.modelSetup) do
             -- left container
-            self.container = customUtils.Create(self.scrollPanel)
+            self.container = DCustomUtils(self.scrollPanel)
             self.container:Pin(TOP, 4)
 
-            self.slider = DanLib.Func.CreateNumSlider(self.container, value.text)
+            self.slider = DBase.CreateNumSlider(self.container, value.text)
             self.slider:Pin()
             self.slider:SetMin(value.min)
             self.slider:SetMax(value.max)
@@ -281,11 +295,16 @@ PANEL:Register('DanLib.UI.ModelViewerMenu')
 
 
 
-if IsValid(DanLib.ModelViewerMenu) then DanLib.ModelViewerMenu:Remove() end
-local function ModelViewerMenu()
-	if IsValid(DanLib.ModelViewerMenu) then DanLib.ModelViewerMenu:Remove() end
+if _IsValid(DanLib.ModelViewerMenu) then
+    DanLib.ModelViewerMenu:Remove()
+end
 
-    local modelPanel = vgui.Create('DanLib.UI.ModelViewerMenu')
+local function ModelViewerMenu()
+	if _IsValid(DanLib.ModelViewerMenu) then
+        DanLib.ModelViewerMenu:Remove()
+    end
+
+    local modelPanel = DCustomUtils(nil, 'DanLib.UI.ModelViewerMenu')
     DanLib.ModelViewerMenu = modelPanel
 end
 -- ModelViewerMenu()

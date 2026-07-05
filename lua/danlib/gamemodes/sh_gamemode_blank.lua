@@ -1,8 +1,23 @@
 /***
- *   @addon         sh_gamemode_blank.lua
- *   @version       1.0.0
+ *   @addon         DanLib
+ *   @component     Gamemode Blank
+ *   @license       MIT License
+ *   @version       1.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
+ *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
+ *                  GitHub: https://github.com/denchik5133
+ *
  *   @description   This is a blank template for creating a new gamemode integration with DanLib.
  *                  Copy this file to 'danlib/gamemodes/' directory and customize it for your gamemode.
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 

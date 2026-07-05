@@ -1,10 +1,13 @@
 /***
  *   @addon         DanLib
- *   @components    ScrollBar | Scroll | HorizontalScroll
- *   @version       1.6.4
- *   @release_date  25/11/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @components    UI ScrollBar | Scroll | HorizontalScroll
+ *   @license       MIT License
+ *   @version       1.6.5
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
@@ -13,7 +16,8 @@
  *                  Includes vertical ScrollBar, full-featured Scroll panel with navigation
  *                  buttons, and HorizontalScroll with drag support.
  *
- *   @features      - Smooth scrolling with configurable physics (WheelSmoothSpeed, WheelScrollSpeed)
+ *   @functions      
+ *                  - Smooth scrolling with configurable physics (WheelSmoothSpeed, WheelScrollSpeed)
  *                  - Think-based animations (no recursive timers, 60+ FPS)
  *                  - Accessor pattern for all properties with validation
  *                  - Click-to-scroll with dynamic animation duration
@@ -24,7 +28,8 @@
  *                  - LocalToScreen caching during drag (-30% CPU)
  *                  - Early exit optimizations
  *
- *   @api           ScrollBar:
+ *   @api           
+ *                  ScrollBar:
  *                    :SetScroll(position) - Set scroll position
  *                    :AnimateTo(target, duration, delay, callback) - Smooth animation
  *                    :SetBarColors(base, hover) - Custom colors
@@ -42,19 +47,18 @@
  *                    :SetBarMargin(pixels) - Configurable spacing
  *                    :IsChildVisible(child) - Visibility check
  *
- *   @compatibility DanLib 3.0.0+ | GMod 2024+
- *   @performance   60+ FPS with 1000+ items | 30% less CPU during drag | No frame drops
- *   @license       MIT License
- *   @repository    https://github.com/denchik5133
- *   @notes         All components use Think-based animation instead of recursive timers
- *                  for optimal performance. ScrollBar and HorizontalScroll share similar
- *                  architecture for consistency.
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         All components use Think-based animation instead of recursive timers for optimal performance.
+ *                  ScrollBar and HorizontalScroll share similar architecture for consistency.
  */
  
 
 
 local DBase = DanLib.Func
 local DUtils = DanLib.Utils
+local DTimer = DanLib.Timer
 local DMaterial = DanLib.Config.Materials
 local DCustomUtils = DanLib.CustomUtils.Create
 
@@ -392,7 +396,7 @@ function SCROLLBAR:AnimateTo(scrll, length, delay, callback)
     end
     
     if (delay > 0) then
-        DBase:TimerSimple(delay, startAnimation)
+        DTimer:Simple(delay, startAnimation)
     else
         startAnimation()
     end
@@ -1551,7 +1555,7 @@ function HORIZONTALSCROLL:AnimateTo(targetX, duration, delay, callback)
         self:AnimateToPosition(targetX, duration)
         
         if (callback and _type(callback) == 'function') then
-            DBase:TimerSimple(duration, function()
+            DTimer:Simple(duration, function()
                 if _IsValid(self) then
                     callback(self)
                 end
@@ -1560,7 +1564,7 @@ function HORIZONTALSCROLL:AnimateTo(targetX, duration, delay, callback)
     end
     
     if (delay > 0) then
-        DBase:TimerSimple(delay, startAnimation)
+        DTimer:Simple(delay, startAnimation)
     else
         startAnimation()
     end
@@ -1589,7 +1593,7 @@ function HORIZONTALSCROLL:ScrollToChild(child, duration, callback)
     self:AnimateToPosition(targetPos, duration or 0.5)
     
     if (callback and _type(callback) == 'function') then
-        DBase:TimerSimple(duration or 0.5, function()
+        DTimer:Simple(duration or 0.5, function()
             if _IsValid(self) then
                 callback(self)
             end

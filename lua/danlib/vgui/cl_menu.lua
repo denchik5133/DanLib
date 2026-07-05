@@ -1,14 +1,23 @@
 /***
  *   @addon         DanLib
- *   @version       2.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Main Manu
+ *   @license       MIT License
+ *   @version       2.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
- *   @description   Universal library for GMod Lua
- *   @license       MIT License
+ *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
+ *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
@@ -18,6 +27,7 @@ local DHook = DanLib.Hook
 local DCookieUtils = DanLib.CookieUtils
 local DCustomUtils = DanLib.CustomUtils.Create
 local DTable = DanLib.Table
+local DTimer = DanLib.Timer
 local ui = DanLib.UI
 local DUtils = DanLib.Utils
 
@@ -30,6 +40,8 @@ local _mathClamp = math.Clamp
 local _CurTime = CurTime
 local _osDate = os.date
 local _osTime = os.time
+local _type = type
+local _ErrorNoHalt = ErrorNoHalt
 local _drawSimpleText = draw.SimpleText
 
 -- Constants
@@ -54,7 +66,7 @@ function PageCache:Get()
         return self.sorted
     end
     
-    self.sorted = {}
+    self.sorted = { }
     for _, page in _pairs(DanLib.Pages) do
         DTable:Add(self.sorted, page)
     end
@@ -87,7 +99,7 @@ if originalRegisterPage then
 end
 
 
-local MenuBuilder = {}
+local MenuBuilder = { }
 
 -- Creating the main frame
 function MenuBuilder:CreateMainFrame()
@@ -397,41 +409,82 @@ local function _createBaseMenu()
     MenuBuilder:SetupSaveNotification(MainMenu)
 
     -- A SINGLE hook for all modules
-    DBase:TimerSimple(0.1, function()
+    DTimer:Simple(0.1, function()
         if (not _IsValid(MainMenu)) then
             return
         end
         
         -- Calling the hook with the menu data
-        hook.Run('DanLib.MainMenu', MainMenu, Navigation, ContentArea)
+        DHook:Run('DanLib.MainMenu', MainMenu, Navigation, ContentArea)
     end)
     
     return MainMenu
 end
 
 
-DanLib.BaseMenu = DanLib.BaseMenu or {}
+DanLib.BaseMenu = DanLib.BaseMenu or { }
 
---- Sets the active page by index
--- @param index (number): Page Index
-function DanLib.BaseMenu:SetActive(index)
-    local menu = DanLib.MainMenu
-    if (not _IsValid(menu)) then
+--- Opens the menu (if closed) and activates the specified page.
+-- Accepts either a number (sorted index) or a string (unique page ID set via :SetID()).
+-- External addons should always prefer the string ID - it never changes regardless
+-- of how many pages other addons register.
+--
+-- Usage:
+--   DanLib.BaseMenu:SetActive(2) -- open by sorted index
+--   DanLib.BaseMenu:SetActive('my_page') -- open by unique string ID
+--
+-- @param target (number|string): Sorted page index OR unique string ID
+function DanLib.BaseMenu:SetActive(target)
+    -- If the menu is not open yet - defer EVERYTHING to the next frame.
+    -- _createBaseMenu() must never be called synchronously from HTML/JS callbacks
+    -- or other restricted VGUI contexts, as MakePopup() will freeze the game.
+    if (not _IsValid(DanLib.MainMenu)) then
+        DTimer:Simple(0, function()
+            if (not _IsValid(DanLib.MainMenu)) then
+                _createBaseMenu()
+            end
+            DanLib.BaseMenu:SetActive(target)
+        end)
         return
     end
-    
+
+    local menu  = DanLib.MainMenu
     local pages = menu.pages
-    if (not pages or index < 1 or index > #pages) then
+    if (not pages) then
         return
     end
-    
-    local page = pages[index]
+
+    local page, pageIndex
+
+    if (_type(target) == 'number') then
+        -- Search by sorted position
+        if (target < 1 or target > #pages) then
+            return
+        end
+
+        page = pages[target]
+        pageIndex = target
+    elseif (_type(target) == 'string') then
+        -- Search by unique string ID
+        local targetPage = DanLib.Pages_ID[target]
+        if (not targetPage) then
+            _ErrorNoHalt('[DanLib] SetActive: page with ID "' .. target .. '" not found. ' .. 'Make sure the page is registered with :SetID() before calling SetActive.\n')
+            return
+        end
+        for i, p in _ipairs(pages) do
+            if (p == targetPage) then
+                page = p
+                pageIndex = i
+                break
+            end
+        end
+    end
+
     if (not page or not _IsValid(page.pnl)) then
         return
     end
-    
-    -- Activating the page
-    MenuBuilder:ActivatePage(menu, menu.Navigation, menu.Container, page, index)
+
+    MenuBuilder:ActivatePage(menu, menu.Navigation, menu.Container, page, pageIndex)
 end
 
 -- Switches the visibility of the menu
@@ -457,7 +510,7 @@ function DanLib.BaseMenu:ToggleMenuVisibility(show)
     menu:AlphaTo(targetAlpha, CONSTANTS.ANIM_DURATION, 0)
 end
 
-DanLib.Network:Receive('DanLib:BaseMenu', function()
+DanLib.Net:On('DanLib:BaseMenu', function()
     DanLib.BaseMenu:Toggle()
     DBase:TutorialSequence(1, 1)
 end)

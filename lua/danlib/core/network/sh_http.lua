@@ -1,111 +1,124 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     HTTP
+ *   @license       MIT License
+ *   @version       2.0.0
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
- *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
- *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
+ *   @description   HTTP utility for DanLib. Wraps GMod's http.Fetch, http.Post and
+ *                  HTTP() with consistent validation and error handling.
+ *                  Use Request() for full control: custom method, headers, and body.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @functions
+ *                  - Fetch: Send a GET request and receive the response body.
+ *                  - Post: Send a POST request with form-encoded key/value data.
+ *                  - Request: Full HTTP request (GET, POST, PUT, DELETE, PATCH, etc.) with custom headers and raw body support.
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
-/***
- *   sh_http.lua
- *   This file is responsible for managing HTTP requests in the DanLib project.
- *
- *   It includes the following functions:
- *   - Fetching data from a URL (Fetch).
- *   - Posting data to a URL (Post).
- *   - Handling success and failure callbacks, where failure callbacks are optional.
- *   - Utility functions to check if a variable has been provided and if a value is a string.
- *
- *   This file provides a simple and flexible interface for making HTTP requests in the project,
- *   ensuring easy communication with external APIs or servers. 
- *   Users can choose to handle errors by providing a failure callback or can opt for default logging.
- *
- *   Functions:
- *   - DanLib.HTTP:Fetch(url, successCallback, [failureCallback])
- *   - DanLib.HTTP:Post(url, data, successCallback, [failureCallback])
- *   - IsValueProvided(value): Checks if a variable has been provided.
- *   - IsString(value): Checks if the value is a string.
- */
+
+DanLib.HTTP = DanLib.HTTP or { }
+local DHTTP = DanLib.HTTP
+
+local _assert = assert
+local _type = type
+local _tostring = tostring
+local _ErrorNoHalt = ErrorNoHalt
 
 
+--- Sends a GET request to the given URL.
+-- On success, calls successCallback(body, len, headers, code).
+-- On failure, calls failureCallback(err) if provided, otherwise logs via ErrorNoHalt.
+-- @param url (string): The URL to fetch.
+-- @param successCallback (function): Called with (body, len, headers, code) on success.
+-- @param failureCallback (function): Optional. Called with (err) on failure.
+-- @return (nil)
+function DHTTP:Fetch(url, successCallback, failureCallback)
+    _assert(_type(url) == 'string', 'DanLib.HTTP:Fetch — url must be a string')
+    _assert(_type(successCallback) == 'function', 'DanLib.HTTP:Fetch — successCallback must be a function')
 
---- Shared online library for DanLib
-DanLib.HTTP = DanLib.HTTP or {}
-
-
---- Function to check if a variable has been entered
--- @param value: The value to be checked.
--- @return: true if the variable has been entered, otherwise false.
-local function IsValueProvided(value)
-    return value ~= nil
-end
-
-
---- Function to check if the value is a string
--- @param value: The value to check.
--- @return: true if the value is a string, otherwise false.
-local function IsString(value)
-    return type(value) == 'string'
-end
-
-
---- Function to fetch data from a URL
--- @param url: The URL to fetch data from.
--- @param successCallback: The function to call on a successful response.
--- @param failureCallback: The function to call on a failed response.
-function DanLib.HTTP:Fetch(url, successCallback, failureCallback)
-    assert(IsString(url), 'URL for Fetch is not provided or is not a string.')
-    assert(IsValueProvided(successCallback), 'Success callback for Fetch is not provided.')
-
-    http.Fetch(url,
-        function(body, len, headers, code)
-            -- Call the success callback with the response body and other details
-            successCallback(body, len, headers, code)
-        end,
-        function(error)
-            -- Call the failure callback if it was provided
-            if failureCallback then
-                failureCallback(error)
-            else
-                print('HTTP Post failed: ' .. error) -- Optional logging
-            end
+    http.Fetch(url, successCallback, function(err)
+        if failureCallback then
+            failureCallback(err)
+        else
+            _ErrorNoHalt('DanLib.HTTP:Fetch failed (' .. url .. '): ' .. _tostring(err) .. '\n')
         end
-    )
+    end)
 end
 
+--- Sends a POST request with form-encoded key/value data to the given URL.
+-- On success, calls successCallback(body, len, headers, code).
+-- On failure, calls failureCallback(err) if provided, otherwise logs via ErrorNoHalt.
+-- @param url (string): The URL to post to.
+-- @param data (table): Key/value pairs to send as the POST body.
+-- @param successCallback (function): Called with (body, len, headers, code) on success.
+-- @param failureCallback (function): Optional. Called with (err) on failure.
+-- @return (nil)
+function DHTTP:Post(url, data, successCallback, failureCallback)
+    _assert(_type(url) == 'string', 'DanLib.HTTP:Post — url must be a string')
+    _assert(_type(data) == 'table', 'DanLib.HTTP:Post — data must be a table')
+    _assert(_type(successCallback) == 'function', 'DanLib.HTTP:Post — successCallback must be a function')
 
---- Function to post data to a URL
--- @param url: The URL to post data to.
--- @param data: A table containing the data to be sent.
--- @param successCallback: The function to call on a successful response.
--- @param failureCallback: The function to call on a failed response.
-function DanLib.HTTP:Post(url, data, successCallback, failureCallback)
-    assert(IsString(url), 'URL for Post is not provided or is not a string.')
-    assert(IsValueProvided(data), 'Data for Post is not provided.')
-    assert(IsValueProvided(successCallback), 'Success callback for Post is not provided.')
-
-    http.Post(url, data,
-        function(body, len, headers, code)
-            -- Call the success callback with the response body and other details
-            successCallback(body, len, headers, code)
-        end,
-        function(error)
-            -- Call the failure callback if it was provided
-            if failureCallback then
-                failureCallback(error)
-            else
-                print('HTTP Fetch failed: ' .. error) -- Optional logging
-            end
+    http.Post(url, data, successCallback, function(err)
+        if failureCallback then
+            failureCallback(err)
+        else
+            _ErrorNoHalt('DanLib.HTTP:Post failed (' .. url .. '): ' .. _tostring(err) .. '\n')
         end
-    )
+    end)
+end
+
+--- Sends a full HTTP request with custom method, headers, and raw body.
+-- Wraps GMod's HTTP() function. Use this for PUT, DELETE, PATCH, or any request
+-- that needs custom headers (e.g. Authorization, Content-Type) or a raw JSON body.
+-- @param options (table): Request options:
+--   • url (string): Required. The target URL.
+--   • method (string): HTTP method: 'GET', 'POST', 'PUT', 'DELETE', 'PATCH'. Defaults to 'GET'.
+--   • headers (table): Optional. Key/value pairs sent as request headers.
+--   • body (string): Optional. Raw request body (e.g. a JSON string).
+--   • type (string): Optional. Content-Type header shorthand (e.g. 'application/json').
+--   • success (function): Optional. Called with (code, body, headers) on success.
+--   • failed (function): Optional. Called with (err) on failure.
+-- @return (nil)
+--
+-- @xample
+--      DanLib.HTTP:Request({
+--          url = 'https://api.example.com/items/5',
+--          method = 'DELETE',
+--          headers = { ['Authorization'] = 'Bearer mytoken' },
+--          success = function(code, body, headers)
+--              print('Deleted, status:', code)
+--          end,
+--          failed = function(err)
+--              print('Request failed:', err)
+--          end,
+--      })
+function DHTTP:Request(options)
+    _assert(_type(options) == 'table', 'DanLib.HTTP:Request — options must be a table')
+    _assert(_type(options.url) == 'string', 'DanLib.HTTP:Request — options.url must be a string')
+
+    local url = options.url
+
+    HTTP({
+        url = url,
+        method = options.method or 'GET',
+        headers = options.headers or { },
+        body = options.body,
+        type = options.type,
+        success = options.success or function() end,
+        failed = options.failed or function(err)
+            _ErrorNoHalt('DanLib.HTTP:Request failed (' .. url .. '): ' .. _tostring(err) .. '\n')
+        end,
+    })
 end

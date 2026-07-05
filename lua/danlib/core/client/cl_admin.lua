@@ -1,44 +1,41 @@
 /***
  *   @addon         DanLib
- *   @version       2.4.0
+ *   @component     Admin
+ *   @license       MIT License
+ *   @version       2.4.1
  *   @release_date  07/12/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Enhanced client config system with staged changes, batch operations
  *
- *   @changelog     2.4.0
- *                  - Added SaveSingleSetting() for immediate single-variable saves
- *                  - Added GetEffectiveConfigValue() to check staged + current values
- *                  - Added GetStagedChangesCount() to track pending changes
- *                  - Added DiscardConfigChanges() to cancel staged changes
- *                  - Added skipHookUpdate parameter to SaveSettings() for welcome tutorial
- *                  - Improved debug logging with conditional output
- *                  - Added validation for unknown variables (prevents silent failures)
- *                  - Function localization for better performance
- *                  - Enhanced error messages with context
- *
- *   @features      Configuration Management:
+ *   @functions
  *                  - Staged changes (edit multiple settings before saving)
  *                  - Single-setting saves (immediate apply)
  *                  - Batch saves (save all at once)
  *                  - Effective value lookup (staged + current)
  *                  - Change tracking and discard
  *
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
 local DBase = DanLib.Func
-local DNetwork = DanLib.Network
 local DTable = DanLib.Table
+local DHook = DanLib.Hook
+local DNet = DanLib.Net
 
 local _pairs = pairs
 local _print = print
-local _tableCount = table.Count
+local _rawget = rawget
 local _LocalPlayer = LocalPlayer
 local _strFormat = string.format
 
@@ -61,29 +58,54 @@ local function _debugLog(level, message)
         colorCode = '[INFO] '
     end
     
-    _print(_strFormat('%s %s%s', prefix, colorCode, message))
+    DBase:Print(_strFormat('%s %s%s', prefix, colorCode, message))
 end
 
 --- Read configuration table from network
 -- @return (number, number): moduleCount, variableCount
 local function ReadConfigTable()
     local variableCount = 0
-    local moduleCount = DNetwork:ReadUInt(5)
+    local moduleCount = DNet:UInt(8)
 
     for i = 1, moduleCount do
-        local moduleKey = DNetwork:ReadString()
-        DanLib.CONFIG[moduleKey] = DanLib.CONFIG[moduleKey] or {}
+        local moduleKey = DNet:Str()
+        DanLib.CONFIG[moduleKey] = DanLib.CONFIG[moduleKey] or { }
 
-        local varCount = DNetwork:ReadUInt(5)
+        -- We set up the metatable once, when the module is first loaded.
+        -- Variables that the server did not send (no permissions / not registered
+        -- locally) will return the default value instead of nil.
+        if (not getmetatable(DanLib.CONFIG[moduleKey])) then
+            local mid = moduleKey
+            setmetatable(DanLib.CONFIG[moduleKey], {
+                __index = function(_, key)
+                    local meta = DanLib.ConfigMeta[mid]
+                    if (meta and meta.Variables[key]) then
+                        return meta.Variables[key].Default
+                    end
+                    return nil
+                end
+            })
+        end
+
+        local varCount = DNet:UInt(8)
         for j = 1, varCount do
-            local variable = DNetwork:ReadString()
-            local variableType = DBase.GetConfigType(moduleKey, variable)
-            
+            local variable = DNet:Str()
+            -- Read the type sent by the server (always present since _writeConfigTable fix).
+            -- Fall back to local ConfigMeta lookup so old servers without this patch still work.
+            local wireType = DNet:Str()
+            local variableType = DBase.GetConfigType(moduleKey, variable) or (wireType ~= '' and wireType or nil)
             if variableType then
-                DanLib.CONFIG[moduleKey][variable] = DBase.ProcessTypeValue(variableType, nil, false)
-                variableCount = variableCount + 1
+                -- Type is known: read the value and store it
+                local readValue = DBase.ProcessTypeValue(variableType, nil, false)
+                -- Only write to CONFIG if this variable is declared locally
+                if DBase.GetConfigType(moduleKey, variable) then
+                    DanLib.CONFIG[moduleKey][variable] = readValue
+                    variableCount = variableCount + 1
+                end
             else
-                _debugLog('WARNING', _strFormat('Unknown variable %s.%s', moduleKey, variable))
+                -- Type unknown on both sides: cannot safely consume the value.
+                -- Stream will be misaligned for this module's remaining variables.
+                _debugLog('WARNING', _strFormat('Unknown variable %s.%s with no wire type - stream may be misaligned', moduleKey, variable))
             end
         end
     end
@@ -91,17 +113,53 @@ local function ReadConfigTable()
     return moduleCount, variableCount
 end
 
---- Handle initial config sync from server
-DNetwork:Receive('DanLib:SendConfig', function()
-    DanLib.CONFIG = {}
+-- Handle initial config sync from server
+DNet:On('DanLib:SendConfig', function()
+    -- Reuse the shared dedup-warn cache from sh_module_loader (shared context).
+    local _warnedCfg = DanLib._warnedConfigKeys or { }
+    local function _cfgWarn(msg)
+        local base = _rawget(DanLib.CONFIG, 'BASE')
+        if (base and _rawget(base, 'Debugg')) then
+            DBase:Print('[CONFIG] ' .. msg)
+        end
+    end
+
+    -- Recreate with a protective metatable (mirrors server sh_module_loader).
+    -- Returning a proxy (not nil) keeps DanLib.CONFIG.X.Y chains crash-free.
+    -- NOTE: (DanLib.CONFIG.X ~= nil) is always true even for unknown modules.
+    -- Use DanLib.ConfigMeta[id] to test whether a module is actually registered.
+    DanLib.CONFIG = setmetatable({ }, {
+        __index = function(_, moduleID)
+            local meta = DanLib.ConfigMeta[moduleID]
+            if (not meta) then
+                local wk = 'mod:' .. tostring(moduleID)
+                if (not _warnedCfg[wk]) then
+                    _warnedCfg[wk] = true
+                    _cfgWarn('Access to unregistered module "' .. tostring(moduleID) .. '" — returning nil-proxy.')
+                end
+                return setmetatable({ }, {
+                    __index = function()
+                        return nil
+                    end
+                })
+            end
+
+            return setmetatable({ }, {
+                __index = function(_, key)
+                    local varMeta = meta.Variables[key]
+                    return varMeta and varMeta.Default or nil
+                end
+            })
+        end
+    })
     local moduleCount, variableCount = ReadConfigTable()
     
     _debugLog('INFO', _strFormat('Received initial config: %d modules, %d variables', moduleCount, variableCount))
-    hook.Run('DanLib:HooksConfigUpdated')
+    DHook:Run('DanLib:HooksConfigUpdated')
 end)
 
 --- Handle config updates from server
-DNetwork:Receive('DanLib:SendConfigUpdate', function()
+DNet:On('DanLib:SendConfigUpdate', function()
     if (not DBase.HasPermission(_LocalPlayer(), 'EditSettings')) then
         return
     end
@@ -116,7 +174,7 @@ DNetwork:Receive('DanLib:SendConfigUpdate', function()
     end
     
     _debugLog('INFO', _strFormat('Config updated: %d modules, %d variables', moduleCount, variableCount))
-    hook.Run('DanLib:HooksConfigUpdated')
+    DHook:Run('DanLib:HooksConfigUpdated')
 end)
 
 --- Stage a configuration change (doesn't save immediately)
@@ -129,10 +187,46 @@ function DBase:SetConfigVariable(module, variable, value)
         return false
     end
 
-    DanLib.ChangedConfig = DanLib.ChangedConfig or {}
-    DanLib.ChangedConfig[module] = DanLib.ChangedConfig[module] or {}
+    -- Check if the new value matches the already-saved value.
+    -- If so, remove it from staged changes so the user doesn't need to
+    -- click Save/Cancel when they simply revert a setting back.
+    local originalVal = DanLib.CONFIG[module] and DanLib.CONFIG[module][variable]
+    local variableType = DBase.GetConfigType(module, variable)
+    local isReverted
+
+    if (variableType == DanLib.Type.Table) then
+        -- Tables need deep comparison via JSON serialisation
+        local jsonNew = DanLib.NetworkUtil:TableToJSON(value or { })
+        local jsonOrig = DanLib.NetworkUtil:TableToJSON(originalVal or { })
+        isReverted = (jsonNew == jsonOrig)
+    else
+        isReverted = (value == originalVal)
+    end
+
+    if isReverted then
+        -- Remove this variable from staged changes if it was there
+        if (DanLib.ChangedConfig and DanLib.ChangedConfig[module]) then
+            DanLib.ChangedConfig[module][variable] = nil
+
+            if (DTable:Count(DanLib.ChangedConfig[module]) == 0) then
+                DanLib.ChangedConfig[module] = nil
+            end
+
+            if (DTable:Count(DanLib.ChangedConfig) == 0) then
+                DanLib.ChangedConfig = nil
+                -- All changes reverted: hide the save notification immediately
+                DHook:Run('DanLib.ConfigSaved')
+            end
+        end
+        return true
+    end
+
+    DanLib.ChangedConfig = DanLib.ChangedConfig or { }
+    DanLib.ChangedConfig[module] = DanLib.ChangedConfig[module] or { }
     DanLib.ChangedConfig[module][variable] = value
-    
+
+    -- Notify UI that there are unsaved changes
+    DHook:Run('DanLib.ConfigChanged')
     return true
 end
 
@@ -144,7 +238,6 @@ function DBase:RetrieveUpdatedVariable(module, variable)
     if (not DanLib.ChangedConfig or not DanLib.ChangedConfig[module]) then
         return nil
     end
-    
     return DanLib.ChangedConfig[module][variable]
 end
 
@@ -171,12 +264,11 @@ end
 -- @return (bool): Whether any changes were discarded
 function DBase:DiscardConfigChanges()
     if DanLib.ChangedConfig then
-        local count = _tableCount(DanLib.ChangedConfig)
+        local count = DTable:Count(DanLib.ChangedConfig)
         DanLib.ChangedConfig = nil
         DBase:PrintType('Info', 'Discarded ' .. count .. ' staged change(s)')
         return true
     end
-    
     return false
 end
 
@@ -215,24 +307,32 @@ function DBase:SaveSingleSetting(module, variable, value)
     end
     
     -- Send to server
-    DNetwork:Start('DanLib:RequestSaveConfigChanges')
-    DNetwork:WriteUInt(1, 5) -- 1 module
-    DNetwork:WriteString(module)
-    DNetwork:WriteUInt(1, 5) -- 1 variable
-    DNetwork:WriteString(variable)
+    local msg = DNet:Open('DanLib:RequestSaveConfigChanges')
+    msg:UInt(1, 8) -- 1 module
+    msg:Str(module)
+    msg:UInt(1, 8) -- 1 variable
+    msg:Str(variable)
+    msg:Str(variableType) -- wire type (always valid here)
     DBase.ProcessTypeValue(variableType, value, true)
-    DNetwork:SendToServer()
+    msg:Up()
     
+    -- Apply the new value to local CONFIG immediately so the UI reflects it
+    -- without waiting for the server's SendConfigUpdate response.
+    if DanLib.CONFIG[module] then
+        DanLib.CONFIG[module][variable] = value
+    end
+
     -- Clear from staged changes
     if (DanLib.ChangedConfig and DanLib.ChangedConfig[module]) then
         DanLib.ChangedConfig[module][variable] = nil
         
-        if (_tableCount(DanLib.ChangedConfig[module]) == 0) then
+        if (DTable:Count(DanLib.ChangedConfig[module]) == 0) then
             DanLib.ChangedConfig[module] = nil
         end
         
-        if (_tableCount(DanLib.ChangedConfig) == 0) then
+        if (DTable:Count(DanLib.ChangedConfig) == 0) then
             DanLib.ChangedConfig = nil
+            DHook:Run('DanLib.ConfigSaved') -- all staged changes are now saved
         end
     end
     
@@ -249,7 +349,7 @@ function DBase:SaveSettings(settingsTable, skipHookUpdate)
         return false
     end
     
-    if (not settingsTable or _tableCount(settingsTable) == 0) then
+    if (not settingsTable or DTable:Count(settingsTable) == 0) then
         DBase:PrintType('Warning', 'No settings to save')
         return false
     end
@@ -260,60 +360,71 @@ function DBase:SaveSettings(settingsTable, skipHookUpdate)
     end
     
     -- Send to server
-    DNetwork:Start('DanLib:RequestSaveConfigChanges')
-    DNetwork:WriteUInt(_tableCount(settingsTable), 5)
+    local msg = DNet:Open('DanLib:RequestSaveConfigChanges')
+    msg:UInt(DTable:Count(settingsTable), 8)
     
     for moduleKey, moduleData in _pairs(settingsTable) do
-        DNetwork:WriteString(moduleKey)
-        DNetwork:WriteUInt(_tableCount(moduleData), 5)
-        
+        msg:Str(moduleKey)
+
+        -- Pre-collect variables with known types so the count we write is accurate.
+        -- Unknown variables are skipped with a warning rather than corrupting the count.
+        local knownVars = { }
         for variable, value in _pairs(moduleData) do
-            DNetwork:WriteString(variable)
             local variableType = DBase.GetConfigType(moduleKey, variable)
-            
             if variableType then
-                DBase.ProcessTypeValue(variableType, value, true)
+                knownVars[variable] = {
+                    value = value,
+                    vtype = variableType
+                }
             else
                 _debugLog('WARNING', _strFormat('Skipping unknown variable %s.%s', moduleKey, variable))
             end
         end
+
+        msg:UInt(DTable:Count(knownVars), 8)
+
+        for variable, data in _pairs(knownVars) do
+            msg:Str(variable)
+            msg:Str(data.vtype) -- wire type
+            DBase.ProcessTypeValue(data.vtype, data.value, true)
+        end
     end
-    
-    DNetwork:SendToServer()
+    msg:Up()
     
     -- Clear staged changes
     DanLib.ChangedConfig = nil
+    DHook:Run('DanLib.ConfigSaved') -- hide save notification immediately
     
     -- If skipping hook, apply changes locally immediately
     if skipHookUpdate then
         for moduleKey, moduleData in _pairs(settingsTable) do
-            DanLib.CONFIG[moduleKey] = DanLib.CONFIG[moduleKey] or {}
+            DanLib.CONFIG[moduleKey] = DanLib.CONFIG[moduleKey] or { }
             for variable, value in _pairs(moduleData) do
                 DanLib.CONFIG[moduleKey][variable] = value
             end
         end
     end
     
-    DBase:PrintType('Info', 'Saving ' .. _tableCount(settingsTable) .. ' module(s)')
+    DBase:PrintType('Info', 'Saving ' .. DTable:Count(settingsTable) .. ' module(s)')
     return true
 end
 
 -- NOTIFICATION HANDLERS
-DNetwork:Receive('DanLib:ScreenNotification', function()
-    DBase:ScreenNotification(DNetwork:ReadString(), DNetwork:ReadString(), DNetwork:ReadString(), DNetwork:ReadString(), DNetwork:ReadString(), DNetwork:ReadString())
+DNet:On('DanLib:ScreenNotification', function()
+    DBase:ScreenNotification(DNet:Str(), DNet:Str(), DNet:Str(), DNet:Str(), DNet:Str(), DNet:Str())
 end)
 
-DNetwork:Receive('DanLib:SidePopupNotification', function()
-    DBase:SidePopupNotification(DNetwork:ReadString(), DNetwork:ReadString(), DNetwork:ReadString())
+DNet:On('DanLib:SidePopupNotification', function()
+    DBase:SidePopupNotification(DNet:Str(), DNet:Str(), tonumber(DNet:Str()) or 5)
 end)
 
 -- CHAT MESSAGE HANDLER
-local MESSAGE = DanLib.BaseConfig.ChatType or {}
-DNetwork:Receive('DanLib:Message', function()
-    local msgType = DNetwork:ReadInt(8) or -1
-    local args = DNetwork:ReadTable(512)
+local MESSAGE = DanLib.BaseConfig.ChatType or { }
+DNet:On('DanLib:Message', function()
+    local msgType = DNet:Int(8) or -1
+    local args = DNet:Tbl()
 
-    local toPrint = {}
+    local toPrint = { }
     local messageColor, messageText
 
     if (msgType == MESSAGE.MESSAGES_TYPE.SUCCESS) then

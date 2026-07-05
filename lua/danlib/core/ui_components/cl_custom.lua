@@ -1,21 +1,23 @@
 /***
- *   @component     DanLib Custom Panel Extensions
+ *   @addon         DanLib
+ *   @component     Custom Panel Extensions
+ *   @license       MIT License
  *   @version       1.0.8
- *   @file          cl_custom.lua
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
- *
+ *                
  *   @description   Custom panel utility extensions for DanLib with advanced visual effects,
  *                  animations, and dynamic property support. Provides reusable methods for hover effects,
  *                  backgrounds, text rendering, blur effects, and interactive animations with real-time
  *                  color updates and transition support.
  *
- *   @part_of       DanLib v3.0.0 and higher
- *                  https://github.com/denchik5133/DanLib
- *
- *   @features      - Dynamic color support for all visual effects (hover, text, background, etc.)
+ *   @functions      
+ *                  - Dynamic color support for all visual effects (hover, text, background, etc.)
  *                  - Fade hover effects with customizable speed and radius
  *                  - Fill hover animations with directional support (LEFT, TOP, RIGHT, BOTTOM)
  *                  - Circle ripple effect on click with smooth animations
@@ -28,17 +30,9 @@
  *                  - Panel docking utilities (Pin, PinMargin)
  *                  - Transition system for smooth property animations
  *
- *   @dependencies  - DanLib.Func (DBase)
- *                  - DanLib.Utils (DUtils)
- *                  - DanLib.CustomUtils
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
  *
- *   @performance   - Localized function references for better performance
- *                  - Pre-calculated gradient materials
- *                  - Optimized transition system with FrameTime-based lerp
- *                  - Cached screen blur material
- *                  - Efficient polygon generation for circles and rounded rectangles
- *
- *   @license       MIT License
  *   @notes         All methods support dynamic property updates via Think event.
  *                  Color properties (TextColor, HoverColor, BackgroundColor, etc.) can be
  *                  modified in real-time and will be reflected immediately in rendering.
@@ -47,6 +41,7 @@
 
 
 local DBase = DanLib.Func
+local DTable = DanLib.Table
 
 local material = Material
 local surface = surface
@@ -741,8 +736,8 @@ function panelClasses:ApplyReadyTextbox()
 end
 
 -- Meta Function to Register Classes
-local meta = FindMetaTable('Panel')
-function meta:CustomUtils()
+local DMetaPanel = DanLib.MetaPanel
+function DMetaPanel:CustomUtils()
     self.Class = function(panel, className, ...)
         local classFunc = panelClasses[className]
         assert(classFunc, '[Custom Utils]: Class ' .. className .. ' does not exist.')

@@ -1,36 +1,39 @@
 /***
  *   @addon         DanLib
- *   @component     DanLib.DrawShadow
+ *   @component     Shadow
+ *   @license       MIT License
  *   @version       1.0.2
  *   @release_date  26/11/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Shadow rendering system with per-instance blur caching
  *
- *   @features      - Per-instance texture caching (blur only on size/params change)
+ *   @functions     
+ *                  - Per-instance texture caching (blur only on size/params change)
  *                  - Automatic cache invalidation on parameter changes
  *                  - Memory cleanup on instance removal
  *                  - Full backward compatibility with v1.0 API
  *
- *   @performance   - Blur operations: Only on parameter change (cached)
- *                  - 100-300% FPS improvement on static shadows
- *                  - Memory: Auto-cleanup via Remove()
+ *   @example     
+ *                  -- Basic shadow (no cache):
+ *                  DanLib.DrawShadow:Begin()
+ *                      draw.RoundedBox(6, x, y, w, h, color)
+ *                  DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false)
  *
- *   @api_usage     Basic shadow (no cache):
- *                    DanLib.DrawShadow:Begin()
- *                    draw.RoundedBox(6, x, y, w, h, color)
- *                    DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false)
+ *                  -- With caching:
+ *                  DanLib.DrawShadow:Begin('my_shadow')
+ *                      draw.RoundedBox(6, x, y, w, h, color)
+ *                  DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false, w, h, 'my_shadow')
  *
- *                  With caching:
- *                    DanLib.DrawShadow:Begin('my_shadow')
- *                    draw.RoundedBox(6, x, y, w, h, color)
- *                    DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false, w, h, 'my_shadow')
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
  *
- *   @compatibility DanLib 3.0.0+ | GMod 2024+
- *   @license       MIT License
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
@@ -263,7 +266,6 @@ do
             direction = direction or 0
             distance = distance or 0
             shadowOnly = shadowOnly or false
-            
             instanceID = instanceID or CurrentInstance
             
             local useCache = (instanceID ~= nil)
@@ -283,14 +285,7 @@ do
             -- Check if we can use cached blur
             local needsBlur = true
             if (useCache and instance.isCached) then
-                local paramsMatch = 
-                    instance.cachedIntensity == intensity and
-                    instance.cachedSpread == spread and
-                    instance.cachedBlur == blur and
-                    instance.cachedOpacity == opacity and
-                    (not forceWidth or instance.cachedWidth == forceWidth) and
-                    (not forceHeight or instance.cachedHeight == forceHeight)
-                
+                local paramsMatch = instance.cachedIntensity == intensity and instance.cachedSpread == spread and instance.cachedBlur == blur and instance.cachedOpacity == opacity and (not forceWidth or instance.cachedWidth == forceWidth) and (not forceHeight or instance.cachedHeight == forceHeight)
                 if paramsMatch then
                     needsBlur = false
                 end

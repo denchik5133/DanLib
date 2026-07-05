@@ -1,22 +1,22 @@
 /***
  *   @addon         DanLib
- *   @version       2.0.0
+ *   @component     Logs Page
+ *   @license       MIT License
+ *   @version       2.0.1
  *   @release_date  30/11/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
  *   @description   Client-side UI for Discord logging configuration
  *   
- *   @changelog     2.0.0:
- *                  - Fixed duplicate isValidWebhook function
- *                  - Added localized functions for performance
- *                  - Added priority indicator in UI
- *                  - Improved webhook validation
- *                  - Optimized Paint functions
- *   
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
@@ -26,12 +26,10 @@ local ui = DanLib.UI
 local DTable = DanLib.Table
 local DMaterial = DanLib.Config.Materials
 local DCustomUtils = DanLib.CustomUtils.Create
-local LOGS, _ = DanLib.UiPanel()
+local LOGS = DanLib.UiPanel()
 local DUtils = DanLib.Utils
 
--- ============================================
 -- LOCALIZED FUNCTIONS (PERFORMANCE)
--- ============================================
 local _pairs = pairs
 local _ipairs = ipairs
 local _upper = string.upper
@@ -40,19 +38,17 @@ local _gsub = string.gsub
 local _ostime = os.time
 local _drawSimpleText = draw.SimpleText
 
--- ============================================
 -- CONSTANTS
--- ============================================
 local defaultFont = 'danlib_font_18'
 local secondaryFont = 'danlib_font_16'
 local smallFont = 'danlib_font_16'
 
 -- Priority colors
 local PRIORITY_COLORS = {
-    [1] = Color(255, 50, 50),   -- CRITICAL - Red
-    [2] = Color(255, 165, 0),   -- HIGH - Orange
+    [1] = Color(255, 50, 50), -- CRITICAL - Red
+    [2] = Color(255, 165, 0), -- HIGH - Orange
     [3] = Color(100, 150, 255), -- NORMAL - Blue
-    [4] = Color(150, 150, 150)  -- LOW - Gray
+    [4] = Color(150, 150, 150) -- LOW - Gray
 }
 
 local PRIORITY_NAMES = {
@@ -61,10 +57,6 @@ local PRIORITY_NAMES = {
     [3] = 'NORMAL',
     [4] = 'LOW'
 }
-
--- ============================================
--- WEBHOOK VALIDATION (UNIFIED)
--- ============================================
 
 --- Validates Discord webhook URL format
 -- @param url (string): Webhook URL to validate
@@ -235,7 +227,7 @@ function LOGS:AddLogButtons(panel, key, values)
         {
             Name = DBase:L('#delete'),
             Icon = DMaterial['Delete'],
-            Col = DanLib.Config.Theme['Red'],
+            Col = DBase:GetColor('Red'),
             Func = function()
                 self:DeleteLog(values, key)
             end

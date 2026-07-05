@@ -1,10 +1,22 @@
 /***
  *   @addon         DanLib
- *   @version       2.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @description   Interactive welcome tutorial
+ *   @component     File util
  *   @license       MIT License
+ *   @version       2.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
+ *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
+ *                  GitHub: https://github.com/denchik5133
+ *
+ *   @description   Interactive welcome tutorial
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
+ *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
@@ -14,10 +26,10 @@ local DBase = DanLib.Func
 local DHook = DanLib.Hook
 local DUtils = DanLib.Utils
 local DTable = DanLib.Table
-local DNetwork = DanLib.Network
+local DTimer = DanLib.Timer
 local DOutline = DanLib.Outline
 local DFileUtil = DanLib.FileUtil
-local DTheme = DanLib.Config.Theme
+local DNetworkUtil = DanLib.NetworkUtil
 local DCustomUtils = DanLib.CustomUtils.Create
 
 local _Lerp = Lerp
@@ -31,12 +43,14 @@ local _mathAbs = math.abs
 local _mathCeil = math.ceil
 local _mathRound = math.Round
 local _FrameTime = FrameTime
+local _CurTime = CurTime
 local _Color = Color
 local _ColorAlpha = ColorAlpha
 local _LocalPlayer = LocalPlayer
 local _GetHostName = GetHostName
 local _drawDrawText = draw.DrawText
 local _drawSimpleText = draw.SimpleText
+local _strformat = string.format
 
 -- CONSTANTS
 local POPUP_WIDTH = 550
@@ -85,7 +99,6 @@ local TEAM_MEMBERS = {
     }
 }
 
-
 local VERSION_CHECK_CACHE = {
     latestVersion = nil,
     lastCheckTime = 0,
@@ -94,9 +107,9 @@ local VERSION_CHECK_CACHE = {
 }
 
 --- Checks the relevance of the cached version of DanLib
--- @param callback function: The callback function with the result (latestVersion, isUpToDate, isChecking)
+-- @param callback (function): The callback function with the result (latestVersion, isUpToDate, isChecking)
 local function _checkVersion(callback)
-    local currentTime = CurTime()
+    local currentTime = _CurTime()
     local updateLink = 'https://raw.githubusercontent.com/denchik5133/DDI-Other-Informations/main/DDI/update.json'
     
     -- If the cache is valid, we return the cached data.
@@ -132,7 +145,7 @@ local function _checkVersion(callback)
             callback(nil, nil, false)
         end
     end, function(err)
-        print('[DanLib Welcome] Failed to fetch version:', err or 'Unknown error')
+        DBase:Print('Failed to fetch version:', err or 'Unknown error')
         VERSION_CHECK_CACHE.isChecking = false
         callback(nil, nil, false)
     end)
@@ -158,7 +171,7 @@ local function GetSafeHostname()
     end
 
     if (safeName == '') then
-        safeName = 'server_' .. util.CRC(hostname)
+        safeName = 'server_' .. DNetworkUtil:CRC(hostname)
     end
 
     return safeName
@@ -170,11 +183,11 @@ end
 
 local function _wasTutorialShown()
     local welcomeFile = _getWelcomeFileName()
-    if (not DFileUtil.Exists(welcomeFile)) then
+    if (not DFileUtil:Exists(welcomeFile)) then
         return false
     end
 
-    local content = DFileUtil.Read(welcomeFile) or ''
+    local content = DFileUtil:Read(welcomeFile) or ''
     if (not content:find(_GetHostName(), 1, true)) then
         return false
     end
@@ -185,9 +198,9 @@ end
 local function _saveWelcomeFlag(completed)
     local welcomeFile = _getWelcomeFileName()
     local currentLang = DanLib.CONFIG.BASE.Languages or 'English'
-    local content = string.format('Server: %s\nTimestamp: %s\nCompleted: %s\nVersion: %s\nLanguage: %s', _GetHostName(), os.date('%Y-%m-%d %H:%M:%S'), completed and 'Yes' or 'Skipped', DanLib.Version or '3.1.0', currentLang)
-    DFileUtil.Write(welcomeFile, content)
-    print('[DanLib] Tutorial ' .. (completed and 'completed' or 'skipped'))
+    local content = _strformat('Server: %s\nTimestamp: %s\nCompleted: %s\nVersion: %s\nLanguage: %s', _GetHostName(), _osDate('%Y-%m-%d %H:%M:%S'), completed and 'Yes' or 'Skipped', DanLib.Version or '3.1.0', currentLang)
+    DFileUtil:Write(welcomeFile, content)
+    DBase:Print('Tutorial ' .. (completed and 'completed' or 'skipped'))
 end
 
 --- TUTORIAL STEPS
@@ -209,7 +222,10 @@ local TUTORIAL_STEPS = {
             { text = '' },
             { text = '{color:113, 128, 147}Time required: ~3 minutes{/color:}' }
         },
-        buttons = { back = 'Skip Tutorial', next = 'Let\'s Start' }
+        buttons = {
+            back = 'Skip Tutorial',
+            next = 'Let\'s Start'
+        }
     },
     { -- STEP 2: About Authors
         title = 'Meet the {color:76,175,80}Development Team{/color}',
@@ -251,7 +267,7 @@ local TUTORIAL_STEPS = {
                 local line1Y = 8
                 _drawSimpleText(DanLib.AddonsName or 'DanLib Basic Library', 'danlib_font_18', leftX, line1Y, DBase:Theme('title', sl.alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
                 local currentVersion = 'v' .. (DanLib.Version or '3.0.0')
-                _drawSimpleText(currentVersion, 'danlib_font_18', rightX, line1Y, _ColorAlpha(DTheme['Blue'], sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
+                _drawSimpleText(currentVersion, 'danlib_font_18', rightX, line1Y, DBase:GetColor('Blue', sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
 
                 -- Author and release date
                 local line2Y = 32
@@ -266,9 +282,9 @@ local TUTORIAL_STEPS = {
                     _drawSimpleText('Checking for updates...', 'danlib_font_18', rightX, line3Y, _Color(255, 165, 0, sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
                 elseif sl.latestVersion then
                     if sl.isUpToDate then
-                        _drawSimpleText('✓ Up to date', 'danlib_font_18', rightX, line3Y, _ColorAlpha(DTheme['Green'], sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
+                        _drawSimpleText('✓ Up to date', 'danlib_font_18', rightX, line3Y, DBase:GetColor('Green', sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
                     else
-                        _drawSimpleText('Update available: v' .. sl.latestVersion, 'danlib_font_18', rightX, line3Y, _ColorAlpha(DTheme['DarkOrange'], sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
+                        _drawSimpleText('Update available: v' .. sl.latestVersion, 'danlib_font_18', rightX, line3Y, DBase:GetColor('DarkOrange', sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
                     end
                 else
                     _drawSimpleText('Unable to check for updates', 'danlib_font_18', rightX, line3Y, _Color(180, 180, 180, sl.alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
@@ -342,7 +358,7 @@ local TUTORIAL_STEPS = {
                 local rowSpacing = 4
                 
                 -- Getting the actual width of the parent
-                DBase:TimerSimple(0, function()
+                DTimer:Simple(nil, function()
                     if (not _IsValid(devCard)) then
                         return
                     end
@@ -409,7 +425,7 @@ local TUTORIAL_STEPS = {
             end
 
             -- AUTOMATIC HEIGHT CALCULATION AFTER ALL ELEMENTS ARE CREATED
-            DBase:TimerSimple(0, function()
+            DTimer:Simple(nil, function()
                 if (not _IsValid(parent)) then
                     return
                 end
@@ -424,7 +440,10 @@ local TUTORIAL_STEPS = {
                 parent:SetTall(totalHeight)
             end)
         end,
-        buttons = { back = 'Back', next = 'Next' }
+        buttons = {
+            back = 'Back',
+            next = 'Next'
+        }
     },
     { -- STEP 3: Language Selection
     title = 'Choose Your {color:67,156,242}Language{/color:}',
@@ -446,8 +465,8 @@ local TUTORIAL_STEPS = {
             local baseCount = DTable:Count(baseLang)
             
             -- Sorting by transfer percentage
-            local sortedLangs = {}
-            for langID, langData in _pairs(DanLib.Temp.Languages or {}) do
+            local sortedLangs = { }
+            for langID, langData in _pairs(DanLib.Temp.Languages or { }) do
                 local delta = baseCount - DTable:Count(langData)
                 local inverted = baseCount - delta
                 local percentage = _mathRound(inverted / baseCount * 100, 2)
@@ -467,7 +486,7 @@ local TUTORIAL_STEPS = {
             for _, lang in _ipairs(sortedLangs) do
                 local isSelected = (currentLang == lang.id)
                 local percentage = lang.percentage
-                local displayName = string.format('%s, translated %s%%', lang.id, percentage)
+                local displayName = _strformat('%s, translated %s%%', lang.id, percentage)
                 langCombo:AddChoice(displayName, lang.id, isSelected)
             end
             
@@ -475,7 +494,10 @@ local TUTORIAL_STEPS = {
                 settings.language = data
             end)
         end,
-        buttons = { back = 'Back', next = 'Next' }
+        buttons = {
+            back = 'Back',
+            next = 'Next'
+        }
     },
     { -- STEP 4: Theme Selection
         title = 'Select a {color:67,156,242}Theme{/color:}',
@@ -505,7 +527,10 @@ local TUTORIAL_STEPS = {
                 settings.theme = data
             end)
         end,
-        buttons = { back = 'Back', next = 'Next' }
+        buttons = {
+            back = 'Back',
+            next = 'Next'
+        }
     },
     { -- STEP 5: Gamemode Configuration
         title = 'Configure {color:255,165,0}Gamemode{/color:}',
@@ -526,7 +551,7 @@ local TUTORIAL_STEPS = {
             modeCombo:SetTall(30)
             
             local currentMode = DanLib.CONFIG.BASE.Gamemode or 'blank'
-            for modeID, modeData in pairs(DanLib.Temp.Gamemodes or {}) do
+            for modeID, modeData in pairs(DanLib.Temp.Gamemodes or { }) do
                 local isSelected = (currentMode == modeID)
                 modeCombo:AddChoice(modeData.Name or modeID, modeID, isSelected)
             end
@@ -580,7 +605,7 @@ local TUTORIAL_STEPS = {
             end)
             
             -- AUTOMATIC CALCULATION OF CONTAINER HEIGHT
-            DBase:TimerSimple(0.1, function()
+            DTimer:Simple(0.1, function()
                 if (not _IsValid(parent)) then
                     return
                 end
@@ -595,7 +620,10 @@ local TUTORIAL_STEPS = {
                 parent:SetTall(totalHeight + 20)
             end)
         end,
-        buttons = { back = 'Back', next = 'Next' }
+        buttons = {
+            back = 'Back',
+            next = 'Next'
+        }
     },
     { -- STEP 6: Owner Privileges
         title = 'Your {color:76,175,80}Owner Privileges{/color:}',
@@ -616,7 +644,10 @@ local TUTORIAL_STEPS = {
             { text = '' },
             { text = '{color:113, 128, 147}Your Owner rank is protected and cannot be removed by others.{/color:}' }
         },
-        buttons = { back = 'Back', next = 'Next' }
+        buttons = {
+            back = 'Back',
+            next = 'Next'
+        }
     },
     { -- STEP 7: Control Panel Navigation
         title = 'The {color:67,156,242}Control Panel{/color:}',
@@ -641,7 +672,10 @@ local TUTORIAL_STEPS = {
             { text = '{color:67,156,242}Help{/color:} - Documentation, Discord, and Tutorial' },
             { text = '  Get support and restart this guide anytime' },
         },
-        buttons = { back = 'Back', next = 'Next' }
+        buttons = {
+            back = 'Back',
+            next = 'Next'
+        }
     },
     { -- STEP 8: More Menu Sections
         title = 'Control Panel {color:255,165,0}Continued{/color:}',
@@ -662,7 +696,10 @@ local TUTORIAL_STEPS = {
             { text = '{color:113, 128, 147}Access the menu anytime with {color:0,255,0}!danlibmenu{/color:} in chat{/color:}' },
             { text = '{color:113, 128, 147}or {color:0,255,0}danlibmenu{/color:} in console.{/color:}' }
         },
-        buttons = { back = 'Back', next = 'Next' }
+        buttons = {
+            back = 'Back',
+            next = 'Next'
+        }
     },
     { -- STEP 9: Confirm Settings
         title = '{color:76,175,80}Confirm{/color:} Your Settings',
@@ -694,23 +731,26 @@ local TUTORIAL_STEPS = {
                 
                 -- Language
                 local langText = settings.language or DanLib.CONFIG.BASE.Languages or 'English'
-                _drawSimpleText('Language:', 'danlib_font_18', labelX, y, _ColorAlpha(DTheme['Blue'], sl.alpha), TEXT_ALIGN_LEFT)
-                _drawSimpleText(langText, 'danlib_font_18', valueX, y, _ColorAlpha(DTheme['Green'], sl.alpha), TEXT_ALIGN_LEFT)
+                _drawSimpleText('Language:', 'danlib_font_18', labelX, y, DBase:GetColor('Blue', sl.alpha), TEXT_ALIGN_LEFT)
+                _drawSimpleText(langText, 'danlib_font_18', valueX, y, DBase:GetColor('Green', sl.alpha), TEXT_ALIGN_LEFT)
                 y = y + spacing
                 
                 -- Theme
                 local themeText = settings.theme or DanLib.CONFIG.BASE.Themes or 'Default'
-                _drawSimpleText('Theme:', 'danlib_font_18', labelX, y, _ColorAlpha(DTheme['Blue'], sl.alpha), TEXT_ALIGN_LEFT)
-                _drawSimpleText(themeText, 'danlib_font_18', valueX, y, _ColorAlpha(DTheme['Green'], sl.alpha), TEXT_ALIGN_LEFT)
+                _drawSimpleText('Theme:', 'danlib_font_18', labelX, y, DBase:GetColor('Blue', sl.alpha), TEXT_ALIGN_LEFT)
+                _drawSimpleText(themeText, 'danlib_font_18', valueX, y, DBase:GetColor('Green', sl.alpha), TEXT_ALIGN_LEFT)
                 y = y + spacing
                 
                 -- Gamemode
                 local modeText = settings.gamemode or DanLib.CONFIG.BASE.Gamemode or 'Blank'
-                _drawSimpleText('Gamemode:', 'danlib_font_18', labelX, y, _ColorAlpha(DTheme['Blue'], sl.alpha), TEXT_ALIGN_LEFT)
-                _drawSimpleText(modeText, 'danlib_font_18', valueX, y, _ColorAlpha(DTheme['Green'], sl.alpha), TEXT_ALIGN_LEFT)
+                _drawSimpleText('Gamemode:', 'danlib_font_18', labelX, y, DBase:GetColor('Blue', sl.alpha), TEXT_ALIGN_LEFT)
+                _drawSimpleText(modeText, 'danlib_font_18', valueX, y, DBase:GetColor('Green', sl.alpha), TEXT_ALIGN_LEFT)
             end)
         end,
-        buttons = { back = 'Back', next = 'Apply & Finish' }
+        buttons = {
+            back = 'Back',
+            next = 'Apply & Finish'
+        }
     }
 }
 
@@ -817,8 +857,8 @@ local function RenderTutorialStep(container, stepIndex, onNext, onBack, settings
     buttonPanel:Pin(BOTTOM)
     buttonPanel:SetTall(40)
     
-    CreateButton(buttonPanel, step.buttons.next, DTheme['Blue'], onNext)
-    CreateButton(buttonPanel, step.buttons.back, DTheme['Red'], onBack)
+    CreateButton(buttonPanel, step.buttons.next, DBase:GetColor('Blue'), onNext)
+    CreateButton(buttonPanel, step.buttons.back, DBase:GetColor('Red'), onBack)
 end
 
 
@@ -833,20 +873,20 @@ end
 
 -- A function for saving all settings to the server
 local function SaveAllSettings(settings)
-    local toSave = {}
+    local toSave = { }
     
     if settings.language then
-        toSave.BASE = toSave.BASE or {}
+        toSave.BASE = toSave.BASE or { }
         toSave.BASE.Languages = settings.language
     end
     
     if settings.theme then
-        toSave.BASE = toSave.BASE or {}
+        toSave.BASE = toSave.BASE or { }
         toSave.BASE.Themes = settings.theme
     end
     
     if settings.gamemode then
-        toSave.BASE = toSave.BASE or {}
+        toSave.BASE = toSave.BASE or { }
         toSave.BASE.Gamemode = settings.gamemode
     end
     
@@ -856,7 +896,7 @@ end
 -- THE MAIN FUNCTION OF OPENING THE TUTORIAL
 function DanLib.PopupWelcome()
     if _wasTutorialShown() then
-        print('[DanLib] Tutorial already shown on: ' .. _GetHostName())
+        DBase:Print('Tutorial already shown on: ' .. _GetHostName())
         return
     end
     
@@ -922,3 +962,5 @@ function DanLib.PopupWelcome()
     
     ShowCurrentStep()
 end
+
+DanLib.PopupWelcome()

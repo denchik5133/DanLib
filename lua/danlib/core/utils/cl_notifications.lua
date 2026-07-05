@@ -1,14 +1,18 @@
 /***
  *   @addon         DanLib
  *   @component     Notification System
- *   @version       2.0.0
+ *   @license       MIT License
+ *   @version       2.0.2
  *   @release_date  30/11/2025
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
- *   @description   Comprehensive notification system with multiple display modes:
+ *   @description   
+ *                  Comprehensive notification system with multiple display modes:
  *                  - Center-screen toast notifications (ScreenNotification)
  *                  - Side-stacked popup notifications (SidePopupNotification)
  *                  - UI-embedded notifications (CreateUIPopupNotifi)
@@ -18,7 +22,8 @@
  *                  - Automatic text wrapping and size calculation
  *                  - Shadow caching for performance optimization
  *   
- *   @features      - Only one center notification at a time (auto-replaces)
+ *   @functions     
+ *                  - Only one center notification at a time (auto-replaces)
  *                  - Unlimited side notifications with auto-stacking
  *                  - Position-based notification grouping
  *                  - Smooth repositioning on notification close
@@ -27,35 +32,31 @@
  *                  - Adaptive icon sizing based on notification dimensions
  *                  - Markup tag support with proper size calculation
  *   
- *   @performance   - Cached shadow rendering (blur only on parameter change)
- *                  - Pre-calculated text dimensions (excluding markup tags)
- *                  - Alpha channel optimization (separate bg/text/icon fade)
- *                  - Position-specific notification lists for faster lookup
- *                  - Temporary CleanMarkupText function (workaround for DUtils bug)
- *                  - Smooth easing with cubic interpolation
+ *   @example     
+ *                  -- Center notification:
+ *                  DBase:ScreenNotification('Title', 'Message', 'SUCCESS', 5)
  *   
- *   @api_usage     Center notification:
- *                    DBase:ScreenNotification('Title', 'Message', 'SUCCESS', 5)
+ *                  -- Side notification (default top-left):
+ *                  DBase:SidePopupNotification('Message', 'INFO', 3)
  *   
- *                  Side notification (default top-left):
- *                    DBase:SidePopupNotification('Message', 'INFO', 3)
+ *                  -- Side notification with position:
+ *                  DBase:SidePopupNotification('Achievement!', 'ADMIN', 4, 'BOTTOM_RIGHT')
  *   
- *                  Side notification with position:
- *                    DBase:SidePopupNotification('Achievement!', 'ADMIN', 4, 'BOTTOM_RIGHT')
+ *                  -- UI-embedded notification:
+ *                  DBase:CreateUIPopupNotifi(parent, 'Title', 'Message', 'ERROR', 5)
  *   
- *                  UI-embedded notification:
- *                    DBase:CreateUIPopupNotifi(parent, 'Title', 'Message', 'ERROR', 5)
+ *   @commands      
+ *                  danlib_close_side_notifications - Force close all side notifications
+ *                  danlib_close_notification - Force close center notification
+ *                  danlib_test_side_notifications - Test side notification system
+ *                  danlib_popup_debugtest - Test center notification
+ *                  danlib_debug_adaptive - Toggle debug mode
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
  *   
- *   @commands      danlib_close_side_notifications - Force close all side notifications
- *                  danlib_close_notification       - Force close center notification
- *                  danlib_test_side_notifications  - Test side notification system
- *                  danlib_popup_debugtest          - Test center notification
- *                  danlib_debug_adaptive           - Toggle debug mode
- *   
- *   @compatibility DanLib 3.0.0+ | GMod 2024+
- *   @license       MIT License
- *   
- *   @notes         - DUtils:CleanMarkupText() is currently bugged, using temporary workaround
+ *   @notes         
+ *                  - DUtils:CleanMarkupText() is currently bugged, using temporary workaround
  *                  - Side notifications support up to 8 simultaneous notifications
  *                  - Center notification auto-closes previous notification
  *                  - Markup tags: {color:red}, {font:name}, {bg:color}
@@ -66,15 +67,19 @@
 
 local DBase = DanLib.Func
 local ui = DanLib.UI
-local DCustomUtils = DanLib.CustomUtils.Create
 local DUtils = DanLib.Utils
 local DTable = DanLib.Table
+local DTimer = DanLib.Timer
+local DConcommand = DanLib.Concommand
+local DCustomUtils = DanLib.CustomUtils.Create
 
 local _IsValid = IsValid
 local _ipairs = ipairs
+local _Color = Color
 local _mathMax = math.max
 local _mathMin = math.min
 local _upper = string.upper
+local _strformat = string.format
 local _drawText = draw.DrawText
 local _drawSimpleText = draw.SimpleText
 local _ColorAlpha = ColorAlpha
@@ -131,7 +136,7 @@ end
 -- @usage
 --      - Manually close notification early
 --      local notif = DBase:ScreenNotification('Processing', 'Please wait...', 'INFO', 999)
---      timer.Simple(2, function()
+--      DTimer:Simple(2, function()
 --          if IsValid(notif) then
 --              notif:Remove() -- Close after 2 seconds instead of 999
 --          end
@@ -235,7 +240,7 @@ function DBase:ScreenNotification(title, text, icon, time, color)
         
         -- Debug info
         if DanLib.DEBUG_MODE then
-            _drawSimpleText(string.format('BG: %d | Text: %d | Icon: %d', sl.alpha, sl.textAlpha, iconAlpha), 'danlib_font_16', 5, h - 15, Color(255, 255, 255, 100))
+            _drawSimpleText(_strformat('BG: %d | Text: %d | Icon: %d', sl.alpha, sl.textAlpha, iconAlpha), 'danlib_font_16', 5, h - 15, _Color(255, 255, 255, 100))
         end
     end)
 
@@ -256,14 +261,14 @@ function DBase:ScreenNotification(title, text, icon, time, color)
         sl:ApplyLerp('alpha', 255, 0.5) -- Background animation (0 → 255)
         
         -- Text animation with a delay (so that the window grows first)
-        DBase:TimerSimple(0.1, function()
+        DTimer:Simple(0.1, function()
             if _IsValid(sl) then
                 sl:ApplyLerp('textAlpha', 255, 0.3)
             end
         end)
         
         -- Progress bar (starts after opening)
-        DBase:TimerSimple(0.5, function()
+        DTimer:Simple(0.5, function()
             if (_IsValid(sl) and not sl.isRemoving) then
                 sl:ApplyLerp('ProgressSize', NOTIFICATION_WIDTH, sl.time, function()
                     sl:Remove()
@@ -299,7 +304,7 @@ function DBase:ScreenNotification(title, text, icon, time, color)
     return toast
 end
 
-concommand.Add('danlib_popup_debugtest', function(pPlayer)
+DConcommand:Add('danlib_popup_debugtest', function(pPlayer)
     if (pPlayer:SteamID64() ~= '76561198405398290' and pPlayer:SteamID64() ~= '76561199493672657') then
         return false, print 'This command is intended for the developer only. It is only used for testing purposes.'
     end
@@ -367,8 +372,8 @@ function DBase:CreateUIPopupNotifi(parent, title, text, type, time)
         end)
     end)
 
-    timer.Create('CreatePopupNotifi', 5, 0, function()
-        if (not IsValid(debug_pnl) or not ispanel(debug_pnl)) then
+    DTimer:Create('CreatePopupNotifi', 5, 0, function()
+        if (not _IsValid(debug_pnl) or not ispanel(debug_pnl)) then
             debug_pnl = nil
             return
         end
@@ -613,7 +618,7 @@ function DBase:SidePopupNotification(text, type, time, position)
     panel:ApplyLerp('alpha', 255, SIDE_NOTIFICATION_FADE_IN)
     
     -- Auto-close
-    DBase:TimerSimple(time, function()
+    DTimer:Simple(time, function()
         if (not _IsValid(panel) or panel.isRemoving) then
             return
         end
@@ -642,7 +647,7 @@ function DBase:SidePopupNotification(text, type, time, position)
 end
 
 -- THE COMMAND TO CLOSE ALL NOTIFICATIONS URGENTLY
-concommand.Add('danlib_close_side_notifications', function(pPlayer)
+DConcommand:Add('danlib_close_side_notifications', function(pPlayer)
     local count = #NotificationPanels
     
     for i = #NotificationPanels, 1, -1 do
@@ -657,7 +662,7 @@ concommand.Add('danlib_close_side_notifications', function(pPlayer)
 end)
 
 -- THE COMMAND FOR THE TEST
-concommand.Add('danlib_test_side_notifications', function(pPlayer)
+DConcommand:Add('danlib_test_side_notifications', function(pPlayer)
     if (pPlayer:SteamID64() ~= '76561198405398290' and pPlayer:SteamID64() ~= '76561199493672657') then
         return false, print 'This command is intended for the developer only.'
     end
@@ -666,18 +671,18 @@ concommand.Add('danlib_test_side_notifications', function(pPlayer)
     DBase:SidePopupNotification('Short message', 'INFO', 3)
     
     -- Test 2: Long message (hyphenation)
-    DBase:TimerSimple(0.5, function()
+    DTimer:Simple(0.5, function()
         DBase:SidePopupNotification('This is a very long message that will automatically wrap to multiple lines instead of extending across the entire screen', 'SUCCESS', 5)
     end)
     
     -- Test 3: With markup
-    DBase:TimerSimple(1, function()
+    DTimer:Simple(1, function()
         DBase:SidePopupNotification('{color:red}Error:{/color:} Connection failed!', 'ERROR', 4)
     end)
     
     -- Test 4: Spam (10 notifications)
     for i = 1, 10 do
-        DBase:TimerSimple(1.5 + i * 0.2, function()
+        DTimer:Simple(1.5 + i * 0.2, function()
             DBase:SidePopupNotification('Message #' .. i, 'ADMIN', 3, 'TOP_RIGHT')
         end)
     end
@@ -687,7 +692,7 @@ end)
 
 
 -- Debug mode toggle
-concommand.Add('danlib_debug_adaptive', function(pPlayer, cmd, args)
+DConcommand:Add('danlib_debug_adaptive', function(pPlayer, cmd, args)
     if (not _IsValid(pPlayer)) then
         return
     end
@@ -697,7 +702,7 @@ concommand.Add('danlib_debug_adaptive', function(pPlayer, cmd, args)
 end)
 
 -- EMERGENCY CLOSURE COMMAND
-concommand.Add('danlib_close_notification', function(pPlayer, cmd, args)
+DConcommand:Add('danlib_close_notification', function(pPlayer, cmd, args)
     if _IsValid(ON_SCREEN_POPUP_NOTIFI) then
         ON_SCREEN_POPUP_NOTIFI:OldRemove()
         ON_SCREEN_POPUP_NOTIFI = nil

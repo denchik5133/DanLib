@@ -1,18 +1,19 @@
 /***
- *   @component     DanLib UI Library
+ *   @addon         DanLib
+ *   @component     UI Library
+ *   @license       MIT License
  *   @version       1.4.0
- *   @file          cl_ui_libs.lua
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *
  *   @description   Client-side UI utility library providing panel extensions and visual effects.
  *                  Includes fade animations, alpha transitions, shadow rendering, and advanced
  *                  tooltip system with color tag support and automatic text wrapping.
- *
- *   @part_of       DanLib v3.0.0 and higher
- *                  https://github.com/denchik5133/danlib
  *
  *   @features      - Panel fade in/out animations with callbacks
  *                  - Alpha transparency effects for hover states
@@ -34,7 +35,9 @@
  *                  - Numeric loops instead of ipairs (10-15% faster iteration)
  *                  - Single-pass tag stripping for width calculation
  *
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         All panel methods return self for method chaining.
  *                  Tooltips automatically removed when cursor exits or goes off-screen.
  */
@@ -71,6 +74,10 @@ local _sub = string.gsub
 local _ipairs = ipairs
 local _select = select
 local _CurTime = CurTime
+local _SysTime = SysTime
+local _Lerp = Lerp
+local _Vector = Vector
+local _LerpVector = LerpVector
 
 local draw = draw
 local SimpleText = draw.SimpleText
@@ -120,7 +127,7 @@ end
 -- @param finalAlpha (number): Final alpha channel (default is 0).
 -- @param sl (function): The callback function to be called when the animation is complete.
 function metaPanel:ApplyLerpFade(time, currAlpha, finalAlpha, sl)
-    local startTime = SysTime()
+    local startTime = _SysTime()
     local origAlpha = currAlpha or self:GetAlpha()
     local finalAlpha = finalAlpha or 0
 
@@ -134,7 +141,7 @@ function metaPanel:ApplyLerpFade(time, currAlpha, finalAlpha, sl)
         end
     end)
     anim.Think = function(anim, pnl, fraction)
-        local alpha = Lerp(fraction, origAlpha, finalAlpha)
+        local alpha = _Lerp(fraction, origAlpha, finalAlpha)
         pnl:SetAlpha(alpha)
     end
     return self
@@ -226,7 +233,7 @@ function metaPanel:ApplyAlpha(hoverDuration, hoverAlpha, decreaseDuration, decre
             self.extraEndTime = nil
             self.decreaseEndTime = _CurTime() + decreaseDuration
         end
-        self.alpha = Lerp(clamp((decreaseDuration - (self.decreaseEndTime - _CurTime())) / decreaseDuration, 0, 1), self.alpha, decreaseAlpha)
+        self.alpha = _Lerp(clamp((decreaseDuration - (self.decreaseEndTime - _CurTime())) / decreaseDuration, 0, 1), self.alpha, decreaseAlpha)
     end
 end
 
@@ -269,7 +276,7 @@ function metaPanel:ApplyTooltip(text, strColor, strIcon, align, maxWidth)
         for i = 1, #lines do
             local strippedLine = _sub(lines[i], '{/?color:%s*[^}]*}', '')
             local lineWidth = DUtils:TextSize(strippedLine, defaultFont).w
-            if lineWidth > maxLineWidth then
+            if (lineWidth > maxLineWidth) then
                 maxLineWidth = lineWidth
             end
         end
@@ -545,7 +552,7 @@ function metaPanel:ApplyLerp(var, to, duration, callback)
         if (not anim.Start) then
             anim.Start = varStart
         end
-        self[var] = Lerp(newFract, anim.Start, anim.Goal)
+        self[var] = _Lerp(newFract, anim.Start, anim.Goal)
     end
     anim.OnEnd = function()
         if callback then
@@ -562,13 +569,13 @@ end
 function metaPanel:ApplyLerpMove(x, y, duration, callback)
     duration = duration or TransitionTime
     local anim = self:NewAnimation(duration)
-    anim.Pos = Vector(x, y)
+    anim.Pos = _Vector(x, y)
     anim.Think = function(anim, pnl, fract)
         local newFract = DanLibUI:Ease(fract, 0, 1, 1)
         if (not anim.StartPos) then
-            anim.StartPos = Vector(pnl.x, pnl.y, 0)
+            anim.StartPos = _Vector(pnl.x, pnl.y, 0)
         end
-        local new = LerpVector(newFract, anim.StartPos, anim.Pos)
+        local new = _LerpVector(newFract, anim.StartPos, anim.Pos)
         self:SetPos(new.x, new.y)
     end
     anim.OnEnd = function()
@@ -591,7 +598,7 @@ function metaPanel:ApplyLerpMoveY(y, duration, callback)
         if (not anim.StartPos) then
             anim.StartPos = pnl.y
         end
-        local new = Lerp(newFract, anim.StartPos, anim.Pos)
+        local new = _Lerp(newFract, anim.StartPos, anim.Pos)
         self:SetPos(pnl.x, new)
     end
     anim.OnEnd = function()
@@ -614,7 +621,7 @@ function metaPanel:ApplyLerpMoveX(x, duration, callback)
         if (not anim.StartPos) then
             anim.StartPos = pnl.x
         end
-        local new = Lerp(newFract, anim.StartPos, anim.Pos)
+        local new = _Lerp(newFract, anim.StartPos, anim.Pos)
         self:SetPos(new, pnl.y)
     end
     anim.OnEnd = function()
@@ -642,7 +649,7 @@ function metaPanel:ApplyLerpHeight(height, duration, callback, easeFunc)
         if (not anim.StartHeight) then
             anim.StartHeight = pnl:GetTall()
         end
-        self:SetTall(Lerp(newFract, anim.StartHeight, anim.Height))
+        self:SetTall(_Lerp(newFract, anim.StartHeight, anim.Height))
     end
     anim.OnEnd = function()
         if callback then
@@ -669,7 +676,7 @@ function metaPanel:ApplyLerpWidth(width, duration, callback, easeFunc)
         if (not anim.StartWidth) then
             anim.StartWidth = pnl:GetWide()
         end
-        self:SetWide(Lerp(newFract, anim.StartWidth, anim.Width))
+        self:SetWide(_Lerp(newFract, anim.StartWidth, anim.Width))
     end
     anim.OnEnd = function()
         if callback then
@@ -686,13 +693,13 @@ end
 function metaPanel:ApplyLerpSize(w, h, duration, callback)
     duration = duration or TransitionTime
     local anim = self:NewAnimation(duration)
-    anim.Size = Vector(w, h)
+    anim.Size = _Vector(w, h)
     anim.Think = function(anim, pnl, fract)
         local newFract = DanLibUI:Ease(fract, 0, 1, 1)
         if (not anim.StartSize) then
-            anim.StartSize = Vector(pnl:GetWide(), pnl:GetWide(), 0)
+            anim.StartSize = _Vector(pnl:GetWide(), pnl:GetWide(), 0)
         end
-        local new = LerpVector(newFract, anim.StartSize, anim.Size)
+        local new = _LerpVector(newFract, anim.StartSize, anim.Size)
         self:SetSize(new.x, new.y)
     end
     anim.OnEnd = function()

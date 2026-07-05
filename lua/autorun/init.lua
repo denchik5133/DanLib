@@ -1,62 +1,67 @@
 /***
  *   @addon         DanLib
- *   @version       3.2.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Init
+ *   @license       MIT License
+ *   @version       3.4.0
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
  
 
 
 DanLib_AddonsName = 'DanLib Basic Library'
-DanLib_Version = '3.2.0'
+DanLib_Version = '3.4.0'
 DanLib_Author = '76561198405398290'
 DanLib_Key = 'DanLib-8f3A5c2E-9d1B7e4A-6c8F2b5D'
 DanLib_ReleaseDate = '10/4/2023'
 DanLib_License = 'MIT'
 
 -- Create a Variables/Tables workspace table.
-DanLib = DanLib or {}
+DanLib = DanLib or { }
 DanLib = {
     AddonsName = DanLib_AddonsName,
     Author = DanLib_Author,
     Version = DanLib_Version,
     Key = DanLib_Key,
     Config = {
-        Style = {},
-        Theme = {},
-        Description = {},
-        Different = {}
+        Style = { },
+        Theme = { },
+        Description = { },
+        Different = { }
     },
-    Panels = {},
-    Utils = {},
-    Modules = {},
-    Func = {},
-    BaseConfig = {},
-    Temp = {},
-    Permissions = {},
-    Logs = {},
-    FileUtil = {},
-    NetworkUtil = {},
-    DEBUG = {}
+    Panels = { },
+    Utils = { },
+    Modules = { },
+    Func = { },
+    BaseConfig = { },
+    Temp = { },
+    Permissions = { },
+    Logs = { },
+    FileUtil = { },
+    NetworkUtil = { },
+    DEBUG = { }
 }
-DanLibUI = DanLibUI or {}
+DanLibUI = DanLibUI or { }
 
-DDI = DDI or {}
+DDI = DDI or { }
 DDI = {
-    Func = {},
-    Config = {},
-    Utils = {},
-    Temp = {}
+    Func = { },
+    Config = { },
+    Utils = { },
+    Temp = { }
 }
 
 --- Defines the available data types for the configuration.
@@ -84,26 +89,57 @@ local function loadingFunctionType()
     -- @field Table: Functions for working with tables.
     DanLib.FunctionType = {
         Int = {
-            NetWrite = function(value) DanLib.Network:WriteInt(value, 32) end,
-            NetRead = function() return DanLib.Network:ReadInt(32) end
+            -- Guard: nil would crash WriteInt; default to 0
+            NetWrite = function(value)
+                net.WriteInt(value or 0, 32)
+            end,
+            NetRead = function()
+                return net.ReadInt(32)
+            end
         },
         String = {
-            NetWrite = function(value) DanLib.Network:WriteString(value) end,
-            NetRead = function() return DanLib.Network:ReadString() end
+            -- Guard: nil would crash WriteString; default to empty string
+            NetWrite = function(value)
+                net.WriteString(value or '')
+            end,
+            NetRead = function()
+                return net.ReadString()
+            end
         },
         Bool = {
-            NetWrite = function(value) DanLib.Network:WriteBool(value) end,
-            NetRead = function() return DanLib.Network:ReadBool() end
+            -- Explicit boolean cast: prevents truthy non-booleans (e.g. 1) writing true
+            NetWrite = function(value)
+                net.WriteBool(value == true)
+            end,
+            NetRead = function()
+                return net.ReadBool()
+            end
         },
         Key = {
-            NetWrite = function(value) DanLib.Network:WriteString(value) end,
-            NetRead = function() return DanLib.Network:ReadString() end,
-            CopyFunc = function(value) return value end
+            -- Guard: nil would crash WriteString; default to empty string
+            NetWrite = function(value)
+                net.WriteString(value or '')
+            end,
+            NetRead = function()
+                return net.ReadString()
+            end,
+            CopyFunc = function(value)
+                return value
+            end
         },
         Table = {
-            NetWrite = function(value) DanLib.Network:WriteString(DanLib.NetworkUtil:TableToJSON(value)) end,
-            NetRead = function() return DanLib.NetworkUtil:JSONToTable(DanLib.Network:ReadString()) end,
-            CopyFunc = function(value) return table.Copy(value) end
+            -- Guard: nil would crash TableToJSON; default to empty table
+            NetWrite = function(value)
+                net.WriteString(util.TableToJSON(value or { }))
+            end,
+            -- Guard: JSONToTable can return nil on malformed JSON; fall back to { }
+            NetRead = function()
+                return util.JSONToTable(net.ReadString()) or { }
+            end,
+            -- Guard: table.Copy(nil) returns nil; fall back to { }
+            CopyFunc = function(value)
+                return table.Copy(value) or { }
+            end
         }
     }
 end
@@ -112,15 +148,9 @@ AddCSLuaFile()
 
 if (CLIENT) then
     include('danlib/core/sh_loader.lua')
-    include('danlib/cl_init.lua')
 elseif (SERVER) then
     include('danlib/core/sh_loader.lua')
     AddCSLuaFile('danlib/core/sh_loader.lua')
-
-    AddCSLuaFile('danlib/cl_init.lua')
-    AddCSLuaFile('danlib/sh_init.lua')
-    AddCSLuaFile('danlib/sv_init.lua') 
-    include('danlib/sv_init.lua')
 
     -- Resources
     resource.AddFile('resource/fonts/montserrat-medium.ttf')
@@ -133,15 +163,14 @@ elseif (SERVER) then
     resource.AddFile('sound/ddi/notifications.wav')
 end
 
-include('danlib/sh_init.lua')
-
 
 -- DanLib Initialization Script
 -- Loads all core modules and components in the correct order
 local function Start()
     local loader = DanLib.Func.CreateLoader({
         githubName = 'DanLib Basic Library',
-        version = '3.2.0',
+        githubAliases = { 'DanLib' },
+        version = DanLib_Version,
         Key = DanLib_Key,
         license = DanLib_License
     })
@@ -184,6 +213,10 @@ local function Start()
     -- Database layer
     loader:IncludeDir('core/sqlite')
 
+    loader:IncludeDir('entities')
+
+    loader:IncludeDir('weapons')
+
     -- Gamemode integration
     DanLib.Func.LoadGamemodes()
     -- Chat commands
@@ -193,10 +226,13 @@ local function Start()
 
     -- Register
     loader:Register()
+    
+    -- Set DanLib as ready
+    DanLib.IsReady = true
 end
 Start()
 
-DanLib.Loading = DanLib.Loading or {}
+DanLib.Loading = DanLib.Loading or { }
 DanLib.Loading.Start = Start
 
 -- Downloading materials from Steam.

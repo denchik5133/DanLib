@@ -1,23 +1,28 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     UI Slider
+ *   @license       MIT License
+ *   @version       1.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
+ *
+ *	 @Source
+ *					GitHub: https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/vgui/dslider.lua
  */
 
-
-
--- https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/vgui/dslider.lua
 
 local KNOB, Constructor = DanLib.UiPanel()
 
@@ -82,7 +87,10 @@ function KNOB:SetEnabled(b)
 end
 
 function KNOB:OnCursorMoved(x, y)
-	if (not self.Dragging && not self.Knob.Depressed) then return end
+	if (not self.Dragging && not self.Knob.Depressed) then
+		return
+	end
+	
 	local w, h = self:GetSize()
 	local iw, ih = self.Knob:GetSize()
 

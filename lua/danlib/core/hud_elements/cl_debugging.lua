@@ -1,28 +1,34 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Debugging
+ *   @license       MIT License
+ *   @version       1.0.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
  
 
 
-local base = DanLib.Func
-local utils = DanLib.Utils
-
+local DBase = DanLib.Func
+local DUtils = DanLib.Utils
+local DMaterial = DanLib.Config.Materials
+local DCustomUtils = DanLib.CustomUtils.Create
 
 -- Example of use
-local DEBUG = base.CreateHUD('Debugging')
+local DEBUG = DBase.CreateHUD('Debugging')
 
 function DEBUG:AccessСheck(player)
     -- Logic to check if the player can see the item
@@ -30,9 +36,15 @@ function DEBUG:AccessСheck(player)
 end
 
 local ui = DanLib.UI
-if ui:valid(DANLIB_MAINHUD) then DANLIB_MAINHUD:Remove() end
+if ui:valid(DANLIB_MAINHUD) then
+    DANLIB_MAINHUD:Remove()
+end
+
 local debug_panel
-if ui:valid(debug_panel) then debug_panel:Remove() end
+if ui:valid(debug_panel) then
+    debug_panel:Remove()
+end
+
 function DEBUG:Create(parent)
     local width, height = 350, 80
     local t = 0.2
@@ -42,31 +54,38 @@ function DEBUG:Create(parent)
     local pos_y = parent:GetTall() - height - 15 -- Set vertically with 15 pixels indentation
 
     if DanLib.CONFIG.BASE.Debugg then
-        if ui:valid(debug_panel) then return end
-        if ui:valid(debug_panel) then debug_panel:Remove() end
+        if ui:valid(debug_panel) then
+            return
+        end
 
-        debug_panel = DanLib.CustomUtils.Create(parent)
+        if ui:valid(debug_panel) then
+            debug_panel:Remove()
+        end
+
+        debug_panel = DCustomUtils(parent)
         -- parent.debug = debug_panel
 
         debug_panel:SetPos(pos_x, parent:GetTall()) -- Starting position (off screen)
         debug_panel:SetSize(width, height)
         debug_panel:ApplyAttenuation(t)
         debug_panel:MoveTo(pos_x, pos_y, t, 0, -10) -- Move to the desired position
-        debug_panel:ApplyBackground(base:Theme('primary_notifi'), 8)
+        debug_panel:ApplyBackground(DBase:Theme('primary_notifi'), 8)
 
         local type_icon = DanLib.TYPE['WARNING']
         local type_color = DanLib.TYPE_COLOR['WARNING']
 
         debug_panel:ApplyEvent(nil, function(sl, w, h)
-            utils:DrawRoundedMask(8, 0, 0, w, h, function()
-                utils:DrawRoundedBox(0, 0, w, h, base:Theme('primary_notifi'))
-                utils:DrawOutlinedRoundedRect(8, 0, 0, w, h, 4, base:Theme('frame'))
-                utils:DrawTextureGradient(0, 0, w, h, 0, 0, 4, 1, nil, 'vgui/alpha-back')
+            DUtils:DrawRoundedMask(8, 0, 0, w, h, function()
+                DUtils:DrawRoundedBox(0, 0, w, h, DBase:Theme('primary_notifi'))
+                DUtils:DrawOutlinedRoundedRect(8, 0, 0, w, h, 4, DBase:Theme('frame'))
+                DUtils:DrawTextureGradient(0, 0, w, h, 0, 0, 4, 1, nil, 'vgui/alpha-back')
+
                 local squareSize = 64
-                utils:DrawSquareWithIcon(8, (h - squareSize) / 2, base:Theme('secondary_dark'), squareSize, DanLib.Config.Materials['Warning'], 6)
+                DUtils:DrawSquareWithIcon(8, (h - squareSize) / 2, DBase:Theme('secondary_dark'), squareSize, DMaterial['Warning'], 6)
+
                 local text_x, text_y = squareSize + 24, h / 2
-                local Text = utils:TextWrap(base:L('SysDebugMode'), 'danlib_font_18', 250)
-                utils:DrawDualText(text_x, text_y, 'WARNING', 'danlib_font_18', type_color, Text, 'danlib_font_18', base:Theme('title'), TEXT_ALIGN_LEFT)
+                local Text = DUtils:TextWrap(DBase:L('SysDebugMode'), 'danlib_font_18', 250)
+                DUtils:DrawDualText(text_x, text_y, 'WARNING', 'danlib_font_18', type_color, Text, 'danlib_font_18', DBase:Theme('title'), TEXT_ALIGN_LEFT)
             end)
         end)
     else 

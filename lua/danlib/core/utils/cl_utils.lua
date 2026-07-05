@@ -1,17 +1,22 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     Utils
+ *   @license       MIT License
+ *   @version       3.0.2
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
@@ -22,24 +27,18 @@ local DTable = DanLib.Table
 local DUtils = DanLib.Utils
 local DMaterial = DanLib.Config.Materials
 
-local aliases = {
-
-}
-
 local math = math
-local round = math.Round
-local max = math.max
-local rad = math.rad
-local min = math.min
-local sin = math.sin
-local cos = math.cos
-local pow = math.pow
-local ceil = math.ceil
-local TimeFraction = math.TimeFraction
-local floor = math.floor
-local clamp = math.Clamp
-local easeInOut = math.EaseInOut
-local mesh_positionmesh_position = mesh.Position
+local _round = math.Round
+local _max = math.max
+local _rad = math.rad
+local _min = math.min
+local _sin = math.sin
+local _cos = math.cos
+local _pow = function(a, b) return a ^ b end
+local _ceil = math.ceil
+local _floor = math.floor
+local _Clamp = math.Clamp
+local _EaseInOut = math.EaseInOut
 
 local surface = surface
 local set_material = surface.SetMaterial
@@ -61,10 +60,10 @@ local draw_texture_id = surface.GetTextureID
 
 local draw = draw
 local draw_text = draw.DrawText
-local rounded_box = draw.RoundedBox
-local rounded_box_ex = draw.RoundedBoxEx
-local simple_text = draw.SimpleText
-local no_texture = draw.NoTexture
+local _RoundedBox = draw.RoundedBox
+local _RoundedBoxEx = draw.RoundedBoxEx
+local _SimpleText = draw.SimpleText
+local _NoTexture = draw.NoTexture
 
 local render = render
 local push_filter_mag = render.PushFilterMag
@@ -91,53 +90,48 @@ local popRenderTarget = render.PopRenderTarget
 local drawScreenQuad = render.DrawScreenQuad
 local getRenderTargetEx = GetRenderTargetEx
 
-local mesh = mesh
-local mesh_color = mesh.Color
-local mesh_position = mesh.Position
-local mesh_advanceVertex = mesh.AdvanceVertex
-local mesh_begin = mesh.Begin
-local mesh_end = mesh.End
-
-local table = table
-local sortByMember = table.SortByMember
-
 local string = string
-local len = string.len
-local sub = string.sub
-local format = string.format
-local match = string.match
-local rep = string.rep
+local _format = string.format
+local _match = string.match
+local _gmatch = string.gmatch
+local _rep = string.rep
 
 local bit = bit
-local band = bit.band
-local lshift = bit.lshift
-local bor = bit.bor
+local _bitBor = bit.bor
+local _bitBand = bit.band
+local _bitLshift = bit.lshift
 
-local lerp = Lerp
-local SW, SH = ScrW, ScrH
-local rcolor = Color
-
+local _Lerp = Lerp
+local _type = type
+local _ScrW = ScrW
+local _ScrH = ScrH
+local _Color = Color
+local _unpack = unpack
+local _SysTime = SysTime
 local _pairs = pairs
 local _ipairs = ipairs
+local _error = error
+local _CurTime = CurTime
 local _material = Material
-
+local _tonumber = tonumber
+local _isstring = isstring
+local _ColorToHSV = ColorToHSV
+local _HSVToColor = HSVToColor
 
 do
     --- Scales a value based on the current screen width.
     -- @param value (number): The value to scale.
     -- @return (number): The scaled value.
     function DBase:Scale(value)
-        return round(value * (SW() / 2560))
+        return _round(value * (_ScrW() / 2560))
     end
-
 
     --- Scales a value based on the current screen height, ensuring a minimum value of 1.
     -- @param value (number): The value to scale.
     -- @return (number): The scaled value, or 1 if the result is less than 1.
     function DBase:ScaleH(value)
-       return max(value * (SH() / 1080), 1)
+       return _max(value * (_ScrH() / 1080), 1)
     end
-
 
     --- Scales the original width and height based on the current screen resolution.
     -- @param originalWidth (number): The original width of the element.
@@ -145,61 +139,86 @@ do
     -- @return (number, number): The new scaled width and height.
     function DUtils:ScaleSize(originalWidth, originalHeight)
         -- Get the current screen resolution
-        local screenWidth, screenHeight = SW(), SH()
+        local screenWidth, screenHeight = _ScrW(), _ScrH()
         -- Determine the scaling factors
         local widthScale = screenWidth / 1920 -- 1920 - standard width
         local heightScale = screenHeight / 1080 -- 1080 - standard height
         -- We use the minimum scaling factor to preserve proportions
-        local scale = min(widthScale, heightScale)
+        local scale = _min(widthScale, heightScale)
         -- Returning the new sizes
         return originalWidth * scale, originalHeight * scale
     end
 
-
     function DUtils:ScaleWide(w, ref)
         ref = ref or 1600
-        return round(w / ref * ScrW())
+        return _round(w / ref * _ScrW())
     end
-
 
     function DUtils:ScaleTall(h, ref)
         ref = ref or 900
-        return round(h / ref * ScrH())
+        return _round(h / ref * _ScrH())
     end
-
 
     --- Calculates the X position based on a relative percentage of the screen width.
     -- @param t (number): The relative position factor.
     -- @return (number): The calculated X position.
     function DUtils:PosX(t)
-    	return (SW() / 2) * t
+        return (_ScrW() / 2) * t
     end
-
 
     --- Calculates the Y position based on a relative percentage of the screen height.
     -- @param t (number): The relative position factor.
     -- @return (number): The calculated Y position.
     function DUtils:PosY(t)
-    	return (SH() / 2) * t
+        return (_ScrH() / 2) * t
     end
-
 
     --- Scales a width value based on the standard width of 1920.
     -- @param x (number): The reference width value.
     -- @return (number): The scaled width based on the current screen width.
     function DUtils:Width(x)
-    	return 1920 / x * SW()
+        return 1920 / x * _ScrW()
     end
-
 
     --- Scales a height value based on the standard height of 1080.
     -- @param y (number): The reference height value.
     -- @return (number): The scaled height based on the current screen width.
     function DUtils:Height(y)
-    	return 1080 / y * SW()
+        return 1080 / y * _ScrW()
+    end
+
+    --- Returns the current screen width in pixels.
+    -- @return (number): Current screen width.
+    function DUtils:ScreenW()
+        return _ScrW()
+    end
+
+    --- Returns the current screen height in pixels.
+    -- @return (number): Current screen height.
+    function DUtils:ScreenH()
+        return _ScrH()
+    end
+
+    --- Converts a fraction (0.0-1.0) to an X pixel position on the current screen.
+    -- 0.0 = left edge, 1.0 = right edge.
+    -- Use with SetMinMax(0, DBase:ScreenW()) for resolution-aware config options.
+    -- @param fraction (number): Relative horizontal position (e.g. 0.5 = center).
+    -- @return (number): Pixel X coordinate clamped to [0, ScrW()].
+    function DUtils:ScreenX(fraction)
+        local w = _ScrW()
+        return _Clamp(_round(w * fraction), 0, w)
+    end
+
+    --- Converts a fraction (0.0-1.0) to a Y pixel position on the current screen.
+    -- 0.0 = top edge, 1.0 = bottom edge.
+    -- Use with SetMinMax(0, DBase:ScreenH()) for resolution-aware config options.
+    -- @param fraction (number): Relative vertical position (e.g. 0.5 = center).
+    -- @return (number): Pixel Y coordinate clamped to [0, ScrH()].
+    function DUtils:ScreenY(fraction)
+        local h = _ScrH()
+        return _Clamp(_round(h * fraction), 0, h)
     end
 end
-
 
 -- Draws a blur effect on a specified panel.
 -- @param panel: The panel on which to draw the blur effect.
@@ -230,40 +249,35 @@ function DUtils:DrawBlur(panel, intensity, depth)
         blurMaterial:Recompute()
 
         -- Draw the textured rectangle with the current blur
-        draw_textured_rect(-x, -y, ScrW(), ScrH())
+        draw_textured_rect(-x, -y, _ScrW(), _ScrH())
     end
 end
-
 
 -- This function can be useful in various situations, such as when you want to display the number
 -- of objects on the screen or when working with coordinates where integer values are needed:
 function DUtils:Round(x)
-	return x >= 0 and floor(x + 0.5) or ceil(x - 0.5)
+    return x >= 0 and _floor(x + 0.5) or _ceil(x - 0.5)
 end
-
 
 -- This feature is useful when creating animations to make
 -- them more natural and pleasing to look at:
 function DUtils:Easing(x)
-	return x < 0.5 and 4 * x * x * x or 1 - pow(-2 * x + 2, 3) / 2
+    return x < 0.5 and 4 * x * x * x or 1 - _pow(-2 * x + 2, 3) / 2
 end
-
 
 -- The DUtils:Repeat function is designed to create a repeating list of values.
 -- It accepts two parameters: val (the value to be repeated) and amount (the number of repetitions).
--- 
 -- Suppose you want to create several objects in the game that have the same properties.
 -- Instead of manually specifying the same value, you can use DUtils:Repeat:
--- 		local positions = { DUtils:Repeat(Vector(0, 0, 0), 5) }
--- 		This will create a table containing the same value 5 times Vector(0, 0, 0)
+--      local positions = { DUtils:Repeat(Vector(0, 0, 0), 5) }
+--      This will create a table containing the same value 5 times Vector(0, 0, 0)
 function DUtils:Repeat(val, amount)
-	local args = {}
-	for i = 1, amount do
-		DTable:Add(args, val)
-	end
-	return unpack(args)
+    local args = { }
+    for i = 1, amount do
+        DTable:Add(args, val)
+    end
+    return _unpack(args)
 end
-
 
 do
     --- Function for wrapping text by character
@@ -316,8 +330,9 @@ do
 
         return text:gsub('(%s?[%S]+)', function(word)
             local char = word:sub(1, 1)
-
-            if (char == '\n' or char == '\t') then totalWidth = 0 end
+            if (char == '\n' or char == '\t') then
+                totalWidth = 0
+            end
 
             local wordWidth = get_text_size(word)
             totalWidth = totalWidth + wordWidth
@@ -343,7 +358,6 @@ do
     end
 end
 
-
 do
     --- Draws two texts on the screen
     -- @param x: X-coordinate for the text
@@ -359,7 +373,7 @@ do
     -- @param maxWidth: Maximum width for the text (optional)
     function DUtils:DrawDualText(x, y, topText, topFont, topColor, bottomText, bottomFont, bottomColor, alignment, centerSpacing, maxWidth)
         topFont = topFont or 'danlib_font_20'
-        topColor = topColor or Color(0, 127, 255, 255)
+        topColor = topColor or _Color(0, 127, 255, 255)
         bottomFont = bottomFont or 'danlib_font_18'
         bottomColor = bottomColor or color_white
         alignment = alignment or TEXT_ALIGN_LEFT
@@ -404,7 +418,6 @@ do
         draw_text(bottomText, bottomFont, x, bottomY, bottomColor, alignment)
     end
 
-
     --- Draws two texts on the screen without truncation
     -- @param x: X-coordinate for the text
     -- @param y: Y-coordinate for the text
@@ -421,7 +434,7 @@ do
         x = x or 0
         y = y or 0
         topFont = topFont or 'danlib_font_20'
-        topColor = topColor or Color(0, 127, 255, 255)
+        topColor = topColor or _Color(0, 127, 255, 255)
         bottomFont = bottomFont or 'danlib_font_18'
         bottomColor = bottomColor or color_white
         alignment = alignment or TEXT_ALIGN_LEFT
@@ -442,66 +455,6 @@ do
         draw_text(topText, topFont, x, topY, topColor, alignment)
         draw_text(bottomText, bottomFont, x, bottomY, bottomColor, alignment)
     end
-
-
-    --- Draws multicoloured text with word hyphenation
-    -- @source https://github.com/Be1zebub/Small-GLua-Things/blob/master/multicolor-text.lua
-    -- @param x: X-coordinate for text
-    -- @param y: Y-coordinate for text
-    -- @param font: Font for text
-    -- @param text: Table containing text segments (lines or colours)
-    -- @param maxWidth: The maximum width of the text before moving it.
-    -- @return: New x and y coordinates after drawing the text
-    function DUtils:DrawMultiColorText(x, y, font, text, maxWidth)
-        set_text_color(255, 255, 255)
-        set_text_pos(x, y)
-
-        local baseX = x
-        local w, h = self:GetTextSize('W', font)
-        local lineHeight = h
-        if (maxW and x > 0) then maxW = maxW + x end
-
-        for _, v in _ipairs(text) do
-            if isstring(v) then
-                w, h = self:GetTextSize(v, font)
-                if (maxW and x + w > maxW) then
-                    v:gsub('(%s?[%S]+)', function(word)
-                        w, h = self:GetTextSize(word, font)
-                        if (x + w >= maxW) then
-                            x, y = baseX, y + lineHeight
-                            word = word:gsub('^%s+', '')
-                            w, h = self:GetTextSize(word, font)
-
-                            if (x + w >= maxW) then
-                                word:gsub('[%z\x01-\x7F\xC2-\xF4][\x80-\xBF]*', function(char)
-                                    w, h = self:GetTextSize(char, font)
-                                    if (x + w >= maxW) then x, y = baseX, y + lineHeight end
-
-                                    set_text_pos(x, y)
-                                    surface.DrawText(char)
-                                    x = x + w
-                                end)
-                                return
-                            end
-                        end
-
-                        set_text_pos(x, y)
-                        surface.DrawText(word)
-                        x = x + w
-                    end)
-                else
-                    set_text_pos(x, y)
-                    surface.DrawText(v)
-                    x = x + w
-                end
-            else
-                set_text_color(v.r, v.g, v.b, v.a)
-            end
-        end
-
-        return x, y
-    end
-
 
     --- Draws text with an accompanying icon for added visual appeal.
     -- @param text (string): The text to display.
@@ -526,20 +479,19 @@ do
 
         if icon then
             if (AlignX == TEXT_ALIGN_LEFT) then
-                simple_text(text, font, size + x, y, ColorText, AlignX, AlignY)
+                _SimpleText(text, font, size + x, y, ColorText, AlignX, AlignY)
                 self:DrawIconOrMaterial(x, y * 0.5, size, icon, ColorIcon)
             elseif (AlignX == TEXT_ALIGN_RIGHT) then
-                simple_text(text, font, x - size + 16, y, ColorText, AlignX, AlignY)
+                _SimpleText(text, font, x - size + 16, y, ColorText, AlignX, AlignY)
                 self:DrawIconOrMaterial(x, y * 0.5, size, icon, ColorIcon)
             else
-                simple_text(text, font, x + (size / 2) + 20, y, ColorText, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+                _SimpleText(text, font, x + (size / 2) + 20, y, ColorText, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
                 self:DrawIconOrMaterial(x - w + (x / w), y - 20, size, icon, ColorIcon)
             end
         else
-            simple_text(text, font, x, y, ColorText, AlignX, AlignY)
+            _SimpleText(text, font, x, y, ColorText, AlignX, AlignY)
         end
     end
-
 
     --- Draws two pieces of text with customizable fonts, colors, and alignment.
     -- @param tText1: The first text string to be drawn.
@@ -584,28 +536,28 @@ do
     end
 end
 
-
 --- Calculates the inverse linear interpolation of a value within a range.
 -- @param number pos The position to interpolate.
 -- @param number p1 The start of the range.
 -- @param number p2 The end of the range.
 -- @return number The normalized value between 0 and 1, or 1 if range is zero.
 function DUtils:InverseLerp(pos, p1, p2)
-	local range = 0
-	range = p2 - p1
+    local range = 0
+    range = p2 - p1
 
-	if (range == 0) then return 1 end
-	return ((pos - p1) / range)
+    if (range == 0) then
+        return 1
+    end
+    return ((pos - p1) / range)
 end
-
 
 --- Draws a loading animation with circles.
 -- @param number w The width of the area to draw in.
 -- @param number h The height of the area to draw in.
 -- @param Color color The color of the circles (optional).
 function DUtils:DrawLoad(w, h, color)
-	color = color or DanLib.Config.Theme['Blue']
-	local mat = _material('vgui/circle')
+    color = color or DBase:GetColor('Blue')
+    local mat = _material('vgui/circle')
 
     for i = 0, 3 do
         -- Set the drawing color and material
@@ -614,11 +566,10 @@ function DUtils:DrawLoad(w, h, color)
 
         -- Calculate the position and draw the textured rectangle
         local x = w * 0.5 - i * 16 + 12
-        local y = h * 0.5 + 4 - 8 - clamp(sin((CurTime() - 0.2 * i) * 4), 0, 1) * 25
+        local y = h * 0.5 + 4 - 8 - _Clamp(_sin((_CurTime() - 0.2 * i) * 4), 0, 1) * 25
         draw_textured_rect(x, y, 16, 16)
     end
 end
-
 
 do
     --- Safely formats text for drawing.
@@ -626,9 +577,8 @@ do
     -- @return (string): The formatted text, or the original text if not matching.
     -- @source: https://github.com/FPtje/DarkRP/blob/master/gamemode/modules/base/cl_drawfunctions.lua
     local function safeText(text)
-        return match(text, '^#([a-zA-Z_]+)$') and text .. ' ' or text
+        return _match(text, '^#([a-zA-Z_]+)$') and text .. ' ' or text
     end
-
 
     --- Draws non-parsed text on the screen.
     -- @param text (string): The text to draw.
@@ -642,7 +592,6 @@ do
     end
 end
 
-
 --- Draws an outline around a rectangle.
 -- @param x (number): The x-coordinate of the rectangle.
 -- @param y (number): The y-coordinate of the rectangle.
@@ -650,7 +599,7 @@ end
 -- @param h (number): The height of the rectangle.
 -- @param color (Color): The color of the outline (optional).
 function DUtils:DrawOutline(x, y, w, h, color)
-	color = color or color_white
+    color = color or color_white
     local intSize = w / 13
     draw_color(color)
     draw_rect(x, y, intSize, 1) -- Top
@@ -658,7 +607,6 @@ function DUtils:DrawOutline(x, y, w, h, color)
     draw_rect(x + w - intSize, y + h - 1, intSize, 1) -- Bottom
     draw_rect(x + w - 1, y + h - intSize, 1, intSize) -- Right
 end
-
 
 --- Draws a rectangle with an outline.
 -- @param x (number): The x-coordinate of the rectangle.
@@ -668,10 +616,9 @@ end
 -- @param color (Color) The color of the rectangle (optional).
 -- @param number width The width of the outline (optional).
 function DUtils:OutlinedRect(x, y, w, h, color, width)
-	draw_color(color or color_white)
+    draw_color(color or color_white)
     draw_outlined_rect(x or 0, y or 0, w or 0, h or 0)
 end
-
 
 --- Gets the size of the specified text in the given font.
 -- @param text (string): The text to measure.
@@ -684,7 +631,6 @@ function DUtils:GetTextSize(text, font)
     return get_text_size(text)
 end
 
-
 --- Returns the width and height of the specified text in the given font.
 -- @param text (string): The text to measure.
 -- @param font (string): The font to use (optional).
@@ -693,9 +639,11 @@ function DUtils:TextSize(text, font)
     font = font or 'danlib_font_20'
     set_font(font)
     local width, height = get_text_size(text)
-    return { w = width, h = height }
+    return {
+        w = width,
+        h = height
+    }
 end
-
 
 --- Draws a filled rectangle.
 -- @param x (number): The x-coordinate of the rectangle.
@@ -704,11 +652,10 @@ end
 -- @param h (number): The height of the rectangle.
 -- @param color (Color): The color of the rectangle (optional).
 function DUtils:DrawRect(x, y, w, h, color)
-	color = color or color_white
-	draw_color(color)
-	draw_rect(x, y, w, h)
+    color = color or color_white
+    draw_color(color)
+    draw_rect(x, y, w, h)
 end
-
 
 --- Draws a line between two points.
 -- @param x (number): The starting x-coordinate.
@@ -717,17 +664,15 @@ end
 -- @param eY (number): The ending y-coordinate.
 -- @param color (Color): The color of the line (optional).
 function DUtils:DrawLine(x, y, eX, eY, color)
-	color = color or color_white
+    color = color or color_white
 
-	draw_color(color)
-	draw_line(x, y, eX, eY)
+    draw_color(color)
+    draw_line(x, y, eX, eY)
 end
-
 
 do
     -- Set the standard rounding value
     local defaultRoundness = 6
-
 
     --- Function to draw a rounded box with the ability to adjust the rounding of the corners
     -- @param x: X-coordinate of the top left corner
@@ -741,10 +686,12 @@ do
     -- @param roundBottomRight: Indicates whether to round the bottom right corner
     local function draw_rounded_box_ex(x, y, w, h, color, roundTopLeft, roundTopRight, roundBottomLeft, roundBottomRight)
         -- Limit the rounding value so that it does not exceed half of the height
-        local roundness = clamp(defaultRoundness, 0, h * 0.5)
+        local roundness = _Clamp(defaultRoundness, 0, h * 0.5)
 
         -- Checking for zero value of width or height
-        if (w <= 0 or h <= 0) then return end
+        if (w <= 0 or h <= 0) then
+            return
+        end
 
         -- If rounding is not required, draw a rectangle
         if (roundness == 0) then
@@ -752,10 +699,9 @@ do
             draw_rect(x, y, w, h)
         else
             -- Drawing a rounded rectangle
-            rounded_box_ex(roundness, x, y, w, h, color, roundTopLeft, roundTopRight, roundBottomLeft, roundBottomRight)
+            _RoundedBoxEx(roundness, x, y, w, h, color, roundTopLeft, roundTopRight, roundBottomLeft, roundBottomRight)
         end
     end
-
 
     --- Simplified function for drawing a fully rounded box
     -- @param x: X-coordinate of the top left corner
@@ -768,7 +714,6 @@ do
         draw_rounded_box_ex(x, y, w, h, color, true, true, true, true)
     end
 
-
     --- Function to draw a box with only the top corners rounded
     -- @param x: X-coordinate of the top left corner
     -- @param y: Y-coordinate of the top left corner
@@ -779,7 +724,6 @@ do
         -- Draw a box with only the top corners rounded
         draw_rounded_box_ex(x, y, w, h, color, true, true, false, false)
     end
-
 
     --- Function to draw a box with only the bottom corners rounded
     -- @param x: X-coordinate of the top left corner
@@ -792,7 +736,6 @@ do
         draw_rounded_box_ex(x, y, w, h, color, false, false, true, true)
     end
 
-
     --- Function to draw a box with only the left corners rounded
     -- @param x: X-coordinate of the top left corner
     -- @param y: Y-coordinate of the top left corner
@@ -803,7 +746,6 @@ do
         -- Draw a box with only the left corners rounded
         draw_rounded_box_ex(x, y, w, h, color, true, false, true, false)
     end
-
 
     --- Function to draw a box with only the right corners rounded
     -- @param x: X-coordinate of the top left corner
@@ -817,25 +759,23 @@ do
     end
 end
 
-
 --- Draws a polygon on the screen.
 -- @param vertices: A table of vertices defining a polygon. Each vertex must be represented as a table with coordinates {x, y}.
 -- @param color: The colour of the polygon. The default colour is white (255, 255, 255, 255, 255).
 function DUtils:DrawPoly(vertices, color)
-	-- Set the default colour if not passed in
-	color = color or color_white
+    -- Set the default colour if not passed in
+    color = color or color_white
 
-	-- Check that the vertex table is not empty and contains at least one vertex
-	if (vertices and #vertices > 0) then
-		-- Turning off the texture for rendering
-		no_texture()
-		-- Set the colour for rendering
-		draw_color(color)
-		-- Draw a polygon using an array of vertices
-		draw_poly(vertices)
-	end
+    -- Check that the vertex table is not empty and contains at least one vertex
+    if (vertices and #vertices > 0) then
+        -- Turning off the texture for rendering
+        _NoTexture()
+        -- Set the colour for rendering
+        draw_color(color)
+        -- Draw a polygon using an array of vertices
+        draw_poly(vertices)
+    end
 end
-
 
 do
     --- Draws a material at a specified position with optional rotation.
@@ -860,7 +800,6 @@ do
         end
     end
 
-
     --- Draws an icon or material based on the provided parameters.
     -- @param x (number): The x-coordinate for drawing.
     -- @param y (number): The y-coordinate for drawing.
@@ -868,7 +807,7 @@ do
     -- @param strIcon (string|Material): The icon or material to draw.
     -- @param strIconCol (Color): The color of the icon/material (optional).
     function DUtils:DrawIconOrMaterial(x, y, size, strIcon, strIconCol)
-        if isstring(strIcon) then
+        if _isstring(strIcon) then
             self:DrawIcon(x, y, size, size, strIcon, strIconCol or DBase:Theme('mat', 200))
         else
             self:DrawMaterial(x, y, size, size, strIconCol or DBase:Theme('mat', 200), strIcon)
@@ -876,17 +815,15 @@ do
     end
 end
 
-
 do
     -- Configuration constants
     local ADAPTIVE_SCALING_CONFIG = {
-        MIN_SIZE = 32,          -- Minimum icon size (32x32)
-        MAX_SIZE = 124,         -- Maximum icon size (124x124)
-        WIDTH_RATIO = 0.25,     -- Parent width ratio for size calculation
-        HEIGHT_RATIO = 0.6,     -- Parent height ratio for size calculation
-        PIXEL_PERFECT = true    -- Ensure even pixel dimensions
+        MIN_SIZE = 32, -- Minimum icon size (32x32)
+        MAX_SIZE = 124, -- Maximum icon size (124x124)
+        WIDTH_RATIO = 0.25, -- Parent width ratio for size calculation
+        HEIGHT_RATIO = 0.6, -- Parent height ratio for size calculation
+        PIXEL_PERFECT = true -- Ensure even pixel dimensions
     }
-
 
     --- Calculate adaptive icon size based on parent container dimensions
     -- @param parentWidth (number): Width of the parent container
@@ -899,7 +836,7 @@ do
         -- Set default values
         minSize = minSize or ADAPTIVE_SCALING_CONFIG.MIN_SIZE
         maxSize = maxSize or ADAPTIVE_SCALING_CONFIG.MAX_SIZE
-        options = options or {}
+        options = options or { }
         
         -- Get scaling ratios (allow override via options)
         local widthRatio = options.widthRatio or ADAPTIVE_SCALING_CONFIG.WIDTH_RATIO
@@ -908,20 +845,19 @@ do
         -- Calculate base size from parent dimensions
         local widthBasedSize = parentWidth * widthRatio
         local heightBasedSize = parentHeight * heightRatio
-        local baseSize = min(widthBasedSize, heightBasedSize)
+        local baseSize = _min(widthBasedSize, heightBasedSize)
         
         -- Apply size constraints
-        local adaptiveSize = max(minSize, min(maxSize, baseSize))
+        local adaptiveSize = _max(minSize, _min(maxSize, baseSize))
         
         -- Ensure pixel-perfect rendering (even numbers)
         if ADAPTIVE_SCALING_CONFIG.PIXEL_PERFECT then
-            adaptiveSize = floor(adaptiveSize / 2) * 2
+            adaptiveSize = _floor(adaptiveSize / 2) * 2
         end
 
         return adaptiveSize
     end
     
-
     --- Enhanced DrawIcon function with adaptive scaling support
     -- @param x (number): X position
     -- @param y (number): Y position  
@@ -933,7 +869,7 @@ do
     -- @param options (table, optional): Additional options
     -- @return (number): Final icon size used
     function DUtils:DrawAdaptiveIcon(x, y, parentW, parentH, icon, color, customSize, options)
-        options = options or {}
+        options = options or { }
         
         -- Calculate or use provided size
         local iconSize = customSize or self:CalculateAdaptiveIconSize(parentW, parentH, 
@@ -944,16 +880,15 @@ do
         if options.centerX then
             finalX = x + (parentW - iconSize) * 0.5
         end
+
         if options.centerY then
             finalY = y + (parentH - iconSize) * 0.5
         end
         
         -- Use existing DrawIcon function with calculated parameters
         self:DrawIcon(finalX, finalY, iconSize, iconSize, icon, color)
-        
         return iconSize
     end
-    
 
     --- Batch calculate adaptive sizes for multiple containers
     --- Useful for optimizing multiple icon calculations
@@ -961,14 +896,9 @@ do
     -- @param options (table, optional): Scaling options
     -- @return (table): Array of calculated icon sizes
     function DUtils:BatchCalculateAdaptiveSizes(containers, options)
-        local results = {}
+        local results = { }
         for i, container in _ipairs(containers) do
-            results[i] = self:CalculateAdaptiveIconSize(
-                container[1], container[2], 
-                options and options.minSize, 
-                options and options.maxSize, 
-                options
-            )
+            results[i] = self:CalculateAdaptiveIconSize(container[1], container[2], options and options.minSize, options and options.maxSize, options)
         end
         return results
     end
@@ -991,7 +921,6 @@ do
     end
 end
 
-
 do
     --- Sets the parameters for the operation of the cStepsil.
     -- @param stencilValue: Value for stencil, defaults to 1.
@@ -1005,13 +934,12 @@ do
         set_stencil_reference_value(stencilValue)
     end
 
-
     --- Performs operations on the mask and draw function.
     -- @param mask: Function for drawing a mask.
     -- @param func: Function for rendering in the mask area.
     -- @param stencil: Value for stencil, defaults to 1.
     function DUtils:DrawMask(mask, func, stencil)
-    	-- Use the default value if not passed.
+        -- Use the default value if not passed.
         stencil = stencil or 1
 
         clear_stencil()
@@ -1020,10 +948,10 @@ do
         -- Customising the stencil for the mask.
         SetupStencil(stencil)
 
-	        -- Drawing the mask.
-	        draw_color(color_white)
-	        no_texture()
-	        mask()
+            -- Drawing the mask.
+            draw_color(color_white)
+            _NoTexture()
+            mask()
 
         -- Set parameters for drawing inside the mask.
         set_stencil_fail_operation(STENCILOPERATION_ZERO)
@@ -1032,14 +960,13 @@ do
         set_stencil_compare_function(STENCILCOMPARISONFUNCTION_EQUAL)
         set_stencil_reference_value(stencil)
 
-	        -- We perform drawing in the mask area.
-	        func()
+            -- We perform drawing in the mask area.
+            func()
 
         set_stencil_enable(false)
         -- Clearing the stencil.
         clear_stencil()
     end
-
 
     --- Performs operations with the inverse mask and draw function.
     -- @param maskFn: Function for drawing the mask.
@@ -1049,10 +976,10 @@ do
         set_stencil_enable(true)
         depth_range(0, 1)
 
-	        -- Customising the stencil for the mask.
-	        SetupStencil(1)
-	        -- Drawing the mask.
-	        maskFn()
+            -- Customising the stencil for the mask.
+            SetupStencil(1)
+            -- Drawing the mask.
+            maskFn()
 
         -- Set parameters for drawing outside the mask.
         set_stencil_fail_operation(STENCILOPERATION_REPLACE)
@@ -1061,8 +988,8 @@ do
         set_stencil_compare_function(STENCILCOMPARISONFUNCTION_EQUAL)
         set_stencil_reference_value(0)
 
-        	-- We perform drawing in the inverse region of the mask.
-        	drawFn()
+            -- We perform drawing in the inverse region of the mask.
+            drawFn()
 
         depth_range(0, 1)
         set_stencil_enable(false)
@@ -1071,7 +998,6 @@ do
     end
 end
 
-
 do
     -- Cache for calculating cross-section sizes (to avoid repeated calculations)
     local gradientMatR = _material('gui/gradient')
@@ -1079,7 +1005,7 @@ do
     local gradientMatD = _material('gui/gradient_down')
 
     -- Cache for calculating section sizes (avoiding repeated calculations)
-    local sectionSizeCache = {}
+    local sectionSizeCache = { }
 
     --- Draws a multi-color gradient with rounded corners
     -- @param x (number): X coordinate of the upper-left corner
@@ -1090,16 +1016,13 @@ do
     --         0 = horizontal (from left to right)
     --         1 = vertical (top to bottom)
     -- @param radius (number): The radius of the rounded corners (by default 8)
-    -- @param ... (Color): Gradient colors (minimum 2 colors)
-    --         Odd indexes are the base colors
-    --         Even indexes are the colors of the transitions
-    -- 
+    -- @param ... (Color): Gradient colors (minimum 2 colors) Odd indexes are the base colors Even indexes are the colors of the transitions
     -- @example
     --     -- Horizontal gradient with rounded corners
-    --     DUtils:DrawGradientBox(0, 0, 200, 100, 0, 8, unpack{ Color(30, 144, 255), Color(255, 140, 0) })
+    --     DUtils:DrawGradientBox(0, 0, 200, 100, 0, 8, _unpack{ Color(30, 144, 255), Color(255, 140, 0) })
     --    
     --     -- Vertical gradient with strongly rounded corners
-    --     DUtils:DrawGradientBox(0, 0, 200, 100, 1, 16, unpack{ Color(255, 0, 0), Color(0, 255, 0), Color(0, 0, 255) })
+    --     DUtils:DrawGradientBox(0, 0, 200, 100, 1, 16, _unpack{ Color(255, 0, 0), Color(0, 255, 0), Color(0, 0, 255) })
     -- 
     -- @note For optimal performance, use an even number of colors.
     -- @since 2.1
@@ -1109,7 +1032,7 @@ do
         
         -- If there are less than 2 colors, we use the default colors (blue-orange)
         if (colorCount < 2) then
-            colors = { Color(30, 144, 255, 255), Color(255, 140, 0, 255) }
+            colors = { _Color(30, 144, 255, 255), _Color(255, 140, 0, 255) }
             colorCount = 2
         end
         
@@ -1124,7 +1047,7 @@ do
         local cacheKey = colorCount .. '_' .. dimension
         local secSize = sectionSizeCache[cacheKey]
         if (not secSize) then
-            secSize = ceil(dimension / ceil(colorCount * 0.5))
+            secSize = _ceil(dimension / _ceil(colorCount * 0.5))
             sectionSizeCache[cacheKey] = secSize
         end
         
@@ -1138,9 +1061,9 @@ do
             
             -- Draw a rounded rectangle instead of the usual one
             if horizontal then
-                rounded_box(radius, currentPos, y, secSize, h, color)
+                _RoundedBox(radius, currentPos, y, secSize, h, color)
             else
-                rounded_box(radius, x, currentPos, w, secSize, color)
+                _RoundedBox(radius, x, currentPos, w, secSize, color)
             end
             
             colorIndex = colorIndex + 2 -- Moving on to the next odd index
@@ -1216,129 +1139,143 @@ do
 
         -- Get a gradient material depending on the direction, or use the default value
         local gradient = gradientMaterials[dir] or DMaterial['grad_d']
-
         -- Drawing the gradient material
         self:DrawMaterial(x, y, w, h, color, gradient)
     end
 end
 
-
 do
-	--- Draws a circle on the screen.
-	-- @param sx: The X-coordinate of the centre of the circle.
-	-- @param sy: The Y-coordinate of the center of the circle.
-	-- @param radius: The radius of the circle.
-	-- @param seg: The number of segments to draw the circle. The default value is 30.
-	-- @param color: The colour of the circle. The default colour is white.
-	-- @param angle: The angle of rotation of the circle in radians. The default value is 0.
-	-- @return: Table with the coordinates of the vertices of the circle.
-	function DUtils:DrawCircle(sx, sy, radius, seg, color, angle)
-		-- Set the default colour
-	    color = color or color_white
-	    -- Set the default number of segments
-	    seg = seg or 30
+    --- Draws a circle on the screen.
+    -- @param sx: The X-coordinate of the centre of the circle.
+    -- @param sy: The Y-coordinate of the center of the circle.
+    -- @param radius: The radius of the circle.
+    -- @param seg: The number of segments to draw the circle. The default value is 30.
+    -- @param color: The colour of the circle. The default colour is white.
+    -- @param angle: The angle of rotation of the circle in radians. The default value is 0.
+    -- @return: Table with the coordinates of the vertices of the circle.
+    function DUtils:DrawCircle(sx, sy, radius, seg, color, angle)
+        -- Set the default colour
+        color = color or color_white
+        -- Set the default number of segments
+        seg = seg or 30
 
-	    local cir = {}
-	    -- Angle in radians
-	    local ang = -rad(angle or 0)
-	    local c = cos(ang)
-	    local s = sin(ang)
+        local cir = { }
+        -- Angle in radians
+        local ang = -_rad(angle or 0)
+        local c = _cos(ang)
+        local s = _sin(ang)
 
-	    -- Circle vertex generation
-	    for i = 0, 360, 360 / seg do
-	        local radd = rad(i)
-	        local x = cos(radd)
-	        local y = sin(radd)
+        -- Circle vertex generation
+        for i = 0, 360, 360 / seg do
+            local radd = _rad(i)
+            local x = _cos(radd)
+            local y = _sin(radd)
 
-	        local tempx = x * radius * c - y * radius * s + sx
-	        y = x * radius * s + y * radius * c + sy
-	        x = tempx
+            local tempx = x * radius * c - y * radius * s + sx
+            y = x * radius * s + y * radius * c + sy
+            x = tempx
 
-	        -- u or v -- Placeholder for texture coordinates
-	        cir[#cir + 1] = { x = x, y = y, u = 0, v = 0 }
-	    end
+            -- u or v -- Placeholder for texture coordinates
+            cir[#cir + 1] = {
+                x = x,
+                y = y,
+                u = 0,
+                v = 0
+            }
+        end
 
-	    -- Checking that the circle contains at least one vertex
-	    if (#cir > 0) then -- (cir and #cir > 0)
-	    	-- Turning off the texture for rendering
-	        no_texture()
-	        -- Set the colour for rendering
-	        draw_color(color)
-	        -- Drawing a circle
-	        draw_poly(cir)
-	    end
+        -- Checking that the circle contains at least one vertex
+        if (#cir > 0) then -- (cir and #cir > 0)
+            -- Turning off the texture for rendering
+            _NoTexture()
+            -- Set the colour for rendering
+            draw_color(color)
+            -- Drawing a circle
+            draw_poly(cir)
+        end
 
-	    return cir  -- Return the table with the vertices of the circle
-	end
+        return cir  -- Return the table with the vertices of the circle
+    end
 
-	--- Calculates the coordinates of the vertices of the circle.
-	-- @param sx: The X-coordinate of the centre of the circle.
-	-- @param sy: The Y-coordinate of the center of the circle.
-	-- @param radius: The radius of the circle.
-	-- @param seg: The number of segments to calculate the circle. The default value is 30.
-	-- @param angle: The angle of rotation of the circle in radians. The default value is 0.
-	-- @return: Table with the coordinates of the vertices of the circle.
-	function DUtils:CalculateCircle(sx, sy, radius, seg, angle)
-		-- Set the default number of segments
-	    seg = seg or 30
-	    local cir = {}
-	    -- Angle in radians
-	    local ang = -rad(angle or 0)
-	    local c = cos(ang)
-	    local s = sin(ang)
+    --- Calculates the coordinates of the vertices of the circle.
+    -- @param sx: The X-coordinate of the centre of the circle.
+    -- @param sy: The Y-coordinate of the center of the circle.
+    -- @param radius: The radius of the circle.
+    -- @param seg: The number of segments to calculate the circle. The default value is 30.
+    -- @param angle: The angle of rotation of the circle in radians. The default value is 0.
+    -- @return: Table with the coordinates of the vertices of the circle.
+    function DUtils:CalculateCircle(sx, sy, radius, seg, angle)
+        -- Set the default number of segments
+        seg = seg or 30
+        local cir = { }
+        -- Angle in radians
+        local ang = -_rad(angle or 0)
+        local c = _cos(ang)
+        local s = _sin(ang)
 
-	    -- Circle vertex generation
-	    for i = 0, 360, 360 / seg do
-	        local radd = rad(i)
-	        local x = cos(radd)
-	        local y = sin(radd)
+        -- Circle vertex generation
+        for i = 0, 360, 360 / seg do
+            local radd = _rad(i)
+            local x = _cos(radd)
+            local y = _sin(radd)
 
-	        local tempx = x * radius * c - y * radius * s + sx
-	        y = x * radius * s + y * radius * c + sy
-	        x = tempx
+            local tempx = x * radius * c - y * radius * s + sx
+            y = x * radius * s + y * radius * c + sy
+            x = tempx
 
-	        -- u or v -- Placeholder for texture coordinates
-	        cir[#cir + 1] = { x = x, y = y, u = 0, v = 0 }
-	    end
+            -- u or v -- Placeholder for texture coordinates
+            cir[#cir + 1] = {
+                x = x,
+                y = y,
+                u = 0,
+                v = 0
+            }
+        end
 
-	    -- Return the table with the vertices of the circle
-	    return cir
-	end
+        -- Return the table with the vertices of the circle
+        return cir
+    end
 
-	--- Draws an arc on the screen.
-	-- @param x: The X-coordinate of the arc centre.
-	-- @param y: The Y-coordinate of the arc center.
-	-- @param ang: Angle of arc origin in degrees.
-	-- @param p: Arc length in degrees.
-	-- @param rad: Radius of arc.
-	-- @param color: Arc colour. The default colour is white.
-	-- @param seg: The number of segments to draw the arc. The default value is 80.
-	-- @source: TDLib https://github.com/Threebow/tdlib/blob/master/tdlib.lua#L39
-	function DUtils:DrawArcT(x, y, ang, p, rad, color, seg)
-		-- Set the default number of segments
-	    seg = seg or 80
-	    -- Set the default colour
-	    color = color or color_white
-	    -- Correcting the angle
-	    ang = (-ang) + 180
-	    local circle = {}
+    --- Draws an arc on the screen.
+    -- @param x: The X-coordinate of the arc centre.
+    -- @param y: The Y-coordinate of the arc center.
+    -- @param ang: Angle of arc origin in degrees.
+    -- @param p: Arc length in degrees.
+    -- @param rad: Radius of arc.
+    -- @param color: Arc colour. The default colour is white.
+    -- @param seg: The number of segments to draw the arc. The default value is 80.
+    -- @source: TDLib https://github.com/Threebow/tdlib/blob/master/tdlib.lua#L39
+    function DUtils:DrawArcT(x, y, ang, p, rad, color, seg)
+        -- Set the default number of segments
+        seg = seg or 80
+        -- Set the default colour
+        color = color or color_white
+        -- Correcting the angle
+        ang = (-ang) + 180
+        local circle = { }
 
-	    -- Add the starting point of the arc
-	    DTable:Add(circle, { x = x, y = y })
+        -- Add the starting point of the arc
+        DTable:Add(circle, {
+            x = x,
+            y = y
+        })
 
-	    -- Arc point generation
-	    for i = 0, seg do
-	        local a = rad((i / seg) * -p + ang)
-	        DTable:Add(circle, { x = x + sin(a) * rad, y = y + cos(a) * rad })
-	    end
+        -- Arc point generation
+        for i = 0, seg do
+            local a = _rad((i / seg) * -p + ang)
+            DTable:Add(circle, {
+                x = x + _sin(a) * rad,
+                y = y + _cos(a) * rad
+            })
+        end
 
-	    -- Set the colour and disable the texture for rendering
-        no_texture()
+        -- Set the colour and disable the texture for rendering
+        _NoTexture()
         -- Set the colour for rendering
         draw_color(color)
         -- Drawing the arc
         draw_poly(circle)
-	end
+    end
 
     --- Draws a wedge of a circle, used for the forward FOV indicator.
     -- @param x (number): The x-coordinate of the center of the wedge.
@@ -1349,21 +1286,24 @@ do
     -- @param res (number): The resolution or number of segments to create the wedge.
     -- @return (table): A table containing the points that define the wedge.
     function DUtils:DrawWedge(x, y, radius, angle, direction, res)
-        local points = {}
-        DTable:Add(points, { x = x, y = y })  -- Add the center point
+        local points = { }
+        DTable:Add(points, { x = x, y = y }) -- Add the center point
 
-        local processedRes = ceil(angle * res)  -- Calculate the number of segments
+        local processedRes = _ceil(angle * res)  -- Calculate the number of segments
 
         for i = 0, processedRes do
             -- Calculate the current angle in radians
-            local currentAngle = rad(i * (angle / processedRes) + direction)
+            local currentAngle = _rad(i * (angle / processedRes) + direction)
             -- Calculate the current point's coordinates
-            local curX = x + cos(currentAngle) * radius
-            local curY = y + sin(currentAngle) * radius
-            DTable:Add(points, { x = curX, y = curY })  -- Add the calculated point to the table
+            local curX = x + _cos(currentAngle) * radius
+            local curY = y + _sin(currentAngle) * radius
+            DTable:Add(points, {
+                x = curX,
+                y = curY
+            })  -- Add the calculated point to the table
         end
 
-        return points  -- Return the table of points
+        return points -- Return the table of points
     end
 
     --- Draws a masked border shape at a specified position.
@@ -1380,15 +1320,13 @@ do
             { x = xpos - 20, y = ypos + 50 },
         }
         draw_color(color)
-        no_texture()
+        _NoTexture()
         draw_poly(mask)
     end
 end
 
-
 do
     local Icon, size2, ang
-
     -- Load the material for the icon
     DBase:GetMaterial('CiiJ0Kg', function(mat)
         Icon = mat
@@ -1404,16 +1342,15 @@ do
     -- @param earse (boolean): If true, applies easing to the rotation (optional).
     function DUtils:Loading(x, y, size, speed, col, center, earse)
         -- if (loading:GetMaterial() == nil) then return end -- Ensure material is loaded
-
         col = col or color_white -- Default color
         speed = speed or 100 -- Default speed
         size2 = center and 0 or size * 0.5 -- Calculate offset based on centering
 
         -- Calculate the angle for rotation
         if earse then
-            ang = easeInOut(((-CurTime() * speed) % 360) / 360, 0.5, 0.5) * 360
+            ang = _EaseInOut(((-_CurTime() * speed) % 360) / 360, 0.5, 0.5) * 360
         else
-            ang = -CurTime() % 360 * speed
+            ang = -_CurTime() % 360 * speed
         end
 
         -- Draw the loading icon
@@ -1430,7 +1367,6 @@ do
     end
 end
 
-
 do
     --- Manipulates the given color by adjusting its hue, saturation, and value.
     -- @param color (Color): The original color to manipulate.
@@ -1440,20 +1376,18 @@ do
     -- @return (Color): The new color after manipulation.
     function DUtils:ManipulateColor(color, deltaH, deltaS, deltaV)
         -- Convert the original color to HSV
-        local h, s, v = ColorToHSV(color)
-        
+        local h, s, v = _ColorToHSV(color)
         -- Adjust the hue, saturation, and value while clamping the results to valid ranges
-        local newH = clamp(h + deltaH, 0, 360) -- Clamp hue to [0, 360]
-        local newS = clamp(s + deltaS, 0, 1) -- Clamp saturation to [0, 1]
-        local newV = clamp(v + deltaV, 0, 1) -- Clamp value to [0, 1]
-        
+        local newH = _Clamp(h + deltaH, 0, 360) -- Clamp hue to [0, 360]
+        local newS = _Clamp(s + deltaS, 0, 1) -- Clamp saturation to [0, 1]
+        local newV = _Clamp(v + deltaV, 0, 1) -- Clamp value to [0, 1]
         -- Convert back to color from the manipulated HSV values and return
-        return HSVToColor(newH, newS, newV)
+        return _HSVToColor(newH, newS, newV)
     end
 
     -- function DUtils:ManipulateColor(color, deltaH, deltaS, deltaV)
-    --     local h, s, v = ColorToHSV(color)
-    --     return HSVToColor(clamp(h + deltaH, 0, 360), clamp(s + deltaS, 0, 1), clamp(v + deltaV, 0, 1))
+    --     local h, s, v = _ColorToHSV(color)
+    --     return _HSVToColor(clamp(h + deltaH, 0, 360), clamp(s + deltaS, 0, 1), clamp(v + deltaV, 0, 1))
     -- end
 
     --- Adjusts the color values to improve visibility and returns a Color object.
@@ -1468,7 +1402,7 @@ do
         r = r < 90 and (0.916 * r + 7.8252) or r
         g = g < 90 and (0.916 * g + 7.8252) or g
         b = b < 90 and (0.916 * b + 7.8252) or b
-        return rcolor(r, g, b, a)
+        return _Color(r, g, b, a)
     end
 
     --- Linear interpolation between two colours.
@@ -1481,11 +1415,10 @@ do
         frac = clamp(frac, 0, 1)
 
         -- Perform linear interpolation for each colour component
-        local r = lerp(frac, from.r, to.r)
-        local g = lerp(frac, from.g, to.g)
-        local b = lerp(frac, from.b, to.b)
-        local a = lerp(frac, from.a, to.a)
-
+        local r = _Lerp(frac, from.r, to.r)
+        local g = _Lerp(frac, from.g, to.g)
+        local b = _Lerp(frac, from.b, to.b)
+        local a = _Lerp(frac, from.a, to.a)
         return self:UiColor(r, g, b, a)
     end
 
@@ -1549,16 +1482,33 @@ do
         g = g or 0
         b = b or 0
         a = a or 255
-        return self:UiColor(colorCorrection[clamp(floor(tonumber(r)), 0, 255)], colorCorrection[clamp(floor(tonumber(g)), 0, 255)], colorCorrection[clamp(floor(tonumber(b)), 0, 255)], clamp(floor(tonumber(a)), 0, 255))
+        return self:UiColor(colorCorrection[_Clamp(_floor(_tonumber(r)), 0, 255)], colorCorrection[_Clamp(_floor(_tonumber(g)), 0, 255)], colorCorrection[_Clamp(_floor(_tonumber(b)), 0, 255)], _Clamp(_floor(_tonumber(a)), 0, 255))
     end
 
-    --- Converts a hexadecimal colour to a Color object
-    -- @param hex (string): Hexadecimal colour (e.g., '#754fd6')
-    -- @param alpha (number): Alpha channel (optional, default 255)
-    -- @return Color: Color object with the corresponding values
-    function DUtils:HexColor(hex, alpha)
-        hex = hex:gsub('#', '')
-        return self:UiColor(tonumber('0x'.. hex:sub(1, 2)), tonumber('0x'.. hex:sub(3, 4)), tonumber('0x'.. hex:sub(5, 6)), alpha or 255)
+    --- Converts a hexadecimal colour string to a Color object.
+    -- Returns `fallback` (or white) when the hex value is absent or too short
+    -- to prevent nil-arithmetic crashes inside UiColor.
+    -- @param hex (string): Hex colour, with or without leading '#' (e.g. '#754fd6', 'e07e22')
+    -- @param alpha (number|nil): Alpha channel (optional, default 255)
+    -- @param fallback (Color|nil): Returned when hex is nil or malformed (optional, default white)
+    -- @return Color
+    function DUtils:HexColor(hex, alpha, fallback)
+        hex = (hex or ''):gsub('#', '')
+        if (#hex < 6) then
+            return fallback or _Color(255, 255, 255, alpha or 255)
+        end
+        return self:UiColor(_tonumber('0x' .. hex:sub(1, 2)) or 0, _tonumber('0x' .. hex:sub(3, 4)) or 0, _tonumber('0x' .. hex:sub(5, 6)) or 0, alpha or 255)
+    end
+
+    --- Converts a Color object to a lowercase hex string (#rrggbb).
+    -- @param c (Color): The colour to convert.
+    -- @param fallback (string|nil): Returned when c is nil (optional, default '#ffffff')
+    -- @return string: e.g. '#e07e22'
+    function DUtils:ColorToHex(c, fallback)
+        if (not c) then
+            return fallback or '#ffffff' 
+        end
+        return _format('#%02x%02x%02x', c.r or 0, c.g or 0, c.b or 0)
     end
 
     --- Converts RGB values to decimal representation
@@ -1566,18 +1516,17 @@ do
     -- @param g (number): Green component (0-255)
     -- @param b (number): Blue component (0-255)
     -- @return number: Decimal representation of colour
-    --
     -- Example:
     --      local colorDecimal = base.ColorDecimal(21, 21, 21)  -- Get the decimal value of the colour
     --      local material = CreateMaterial('my_material', 'UnlitGeneric', {
     --          ['$basetexture'] = 'white',
-    --          ['$color'] = colorDecimal  -- Use the decimal value of the colour
+    --          ['$color'] = colorDecimal -- Use the decimal value of the colour
     --      })
     function DUtils:ColorDeciminal(r, g, b)
-        r = band(lshift(r, 16), 0xFF0000)
-        g = band(lshift(g, 8), 0x00FF00)
-        b = band(b, 0x0000FF)
-        return bor(bor(r, g), b)
+        r = _bitBand(_bitLshift(r, 16), 0xFF0000)
+        g = _bitBand(_bitLshift(g, 8), 0x00FF00)
+        b = _bitBand(b, 0x0000FF)
+        return _bitBor(_bitBor(r, g), b)
     end
 
     --- Converts HSL to RGB
@@ -1592,12 +1541,22 @@ do
             r, g, b = l, l, l -- achromatic
         else
             local function hue2rgb(p, q, t)
-                if (t < 0) then t = t + 1 end
-                if (t > 1) then t = t - 1 end
-                if (t < 1 / 6) then return p + (q - p) * 6 * t
-                elseif (t < 1 / 2) then return q
-                elseif (t < 2 / 3) then return p + (q - p) * (2/3 - t) * 6
-                else return p
+                if (t < 0) then
+                    t = t + 1
+                end
+
+                if (t > 1) then
+                    t = 
+                    t - 1
+                end
+                if (t < 1 / 6) then
+                    return p + (q - p) * 6 * t
+                elseif (t < 1 / 2) then
+                    return q
+                elseif (t < 2 / 3) then
+                    return p + (q - p) * (2/3 - t) * 6
+                else 
+                    return p
                 end
             end
 
@@ -1607,8 +1566,7 @@ do
             g = hue2rgb(p, q, h / 360)
             b = hue2rgb(p, q, h / 360 - 1/3)
         end
-
-        return floor(r * 255), floor(g * 255), floor(b * 255)
+        return _floor(r * 255), _floor(g * 255), _floor(b * 255)
     end
 
     --- Converts RGB to HSL
@@ -1621,8 +1579,8 @@ do
         g = g / 255
         b = b / 255
 
-        local max = max(r, g, b)
-        local min = min(r, g, b)
+        local max = _max(r, g, b)
+        local min = _min(r, g, b)
         local h, s, l = 0, 0, (max + min) / 2
 
         if (max == min) then
@@ -1639,8 +1597,7 @@ do
             end
             h = h / 6
         end
-
-        return floor(h * 360), floor(s * 100), floor(l * 100)
+        return _floor(h * 360), _floor(s * 100), _floor(l * 100)
     end
 
     --- Converts HSV to RGB
@@ -1650,8 +1607,8 @@ do
     -- @return number, number, number: RGB values (0-255)
     function DUtils:HSVtoRGB(h, s, v)
         local r, g, b
-        local i = floor(h / 60) % 6
-        local f = h / 60 - floor(h / 60)
+        local i = _floor(h / 60) % 6
+        local f = h / 60 - _floor(h / 60)
         local p = v * (1 - s)
         local q = v * (1 - f * s)
         local t = v * (1 - (1 - f) * s)
@@ -1669,8 +1626,7 @@ do
         elseif (i == 5) then
             r, g, b = v, p, q
         end
-
-        return floor(r * 255), floor(g * 255), floor(b * 255)
+        return _floor(r * 255), _floor(g * 255), _floor(b * 255)
     end
 
     --- Converts CMYK to RGB
@@ -1695,7 +1651,7 @@ do
         local c = 1 - (r / 255)
         local m = 1 - (g / 255)
         local y = 1 - (b / 255)
-        local k = min(c, min(m, y))
+        local k = _min(c, _min(m, y))
         
         if (k < 1) then
             c = (c - k) / (1 - k)
@@ -1705,33 +1661,33 @@ do
             c, m, y = 0, 0, 0
         end
 
-        return floor(c * 100), floor(m * 100), floor(y * 100), floor(k * 100)
+        return _floor(c * 100), _floor(m * 100), _floor(y * 100), _floor(k * 100)
     end
 
     --- Parses colour values from a string depending on the specified format.
     -- @param input (string): A string containing comma-separated colour values.
-    -- @param type (string): The type of format to use for parsing.
-    --                       Possible values are 'CMYK', 'HSV', 'HSL', 'HEX', 'RGB'.
-    -- @return number, number, number, number, number, number: Returns the appropriate colour components.
-    --                                                         For HEX, returns (r, g, b, a), where a is 255 (full opacity).
-    --                                                         For RGB, returns (r, g, b, a) with a = 255 by default.
-    --                                                         If the format is not recognised, returns (nil, nil, nil, nil, nil).
+    -- @param type (string): The type of format to use for parsing. Possible values are 'CMYK', 'HSV', 'HSL', 'HEX', 'RGB'.
+    -- @return number, number, number, number, number, number:
+    --         Returns the appropriate colour components.
+    --         For HEX, returns (r, g, b, a), where a is 255 (full opacity).
+    --         For RGB, returns (r, g, b, a) with a = 255 by default.
+    --         If the format is not recognised, returns (nil, nil, nil, nil, nil).
     function DUtils:ParseColor(input, type)
         if (type == 'CMYK') then
             local c, m, y, k = input:match('(%d+),%s*(%d+),%s*(%d+),%s*(%d+)')
-            return tonumber(c), tonumber(m), tonumber(y), tonumber(k)
+            return _tonumber(c), _tonumber(m), _tonumber(y), _tonumber(k)
         elseif (type == 'HSV') then
             local h, s, v = input:match('(%d+),%s*(%d+),%s*(%d+)')
-            return tonumber(h), tonumber(s), tonumber(v)
+            return _tonumber(h), _tonumber(s), _tonumber(v)
         elseif (type == 'HSL') then
             local h, s, l = input:match('(%d+),%s*(%d+),%s*(%d+)')
-            return tonumber(h), tonumber(s), tonumber(l)
+            return _tonumber(h), _tonumber(s), _tonumber(l)
         elseif (type == 'HEX') then
             if input:match('^#?([0-9A-Fa-f]{6})$') then
                 local hex = input:gsub('#', '')
-                local r = tonumber(hex:sub(1, 2), 16)
-                local g = tonumber(hex:sub(3, 4), 16)
-                local b = tonumber(hex:sub(5, 6), 16)
+                local r = _tonumber(hex:sub(1, 2), 16)
+                local g = _tonumber(hex:sub(3, 4), 16)
+                local b = _tonumber(hex:sub(5, 6), 16)
                 return r, g, b, 255 -- Full opacity by default
             end
             return nil, nil, nil, nil
@@ -1747,8 +1703,8 @@ do
             end
 
             -- Separation of values
-            local values = {}
-            for value in string.gmatch(input, '([^,]+)') do
+            local values = { }
+            for value in _gmatch(input, '([^,]+)') do
                 DTable:Add(values, value)
             end
 
@@ -1761,7 +1717,7 @@ do
             local r, g, b, a = 0, 0, 0, 255 -- Default values (a = 255 for full opacity)
             for i = 1, #values do
                 if (values[i] and values[i] ~= '') then
-                    local num = tonumber(values[i])
+                    local num = _tonumber(values[i])
                     if num then
                         if (num < 0 or num > 255) then
                             return nil, nil, nil, nil
@@ -1781,18 +1737,15 @@ do
                     end
                 end
             end
-
             -- Return parsed RGB values
             return r, g, b, a
         end
-
         return nil, nil, nil, nil -- Return nil if the type is not recognised
     end
 end
 
-
 do
-	--- Draws the arc.
+    --- Draws the arc.
     -- @param cx: X coordinate of the arc centre.
     -- @param cy: Y coordinate of the arc centre.
     -- @param radius: The radius of the arc.
@@ -1801,21 +1754,21 @@ do
     -- @param endang: End angle in degrees.
     -- @param roughness: The level of detail of the arc.
     -- @param colour: Arc colour.
-	function DUtils:DrawArc(cx, cy, radius, thickness, startang, endang, roughness, color)
-	    draw_color(color or color_white)
-	    self:SurfaceDrawArc(self:PrecacheArc(cx, cy, radius, thickness, startang, endang, roughness))
-	end
+    function DUtils:DrawArc(cx, cy, radius, thickness, startang, endang, roughness, color)
+        draw_color(color or color_white)
+        self:SurfaceDrawArc(self:PrecacheArc(cx, cy, radius, thickness, startang, endang, roughness))
+    end
 
-	--- Draws a pre-prepared arc.
+    --- Draws a pre-prepared arc.
     -- @param arc: A table of points representing the arc.
-	function DUtils:SurfaceDrawArc(arc)
-        no_texture()
-	    for k, v in _ipairs(arc) do
-	        draw_poly(v)
-	    end
-	end
+    function DUtils:SurfaceDrawArc(arc)
+        _NoTexture()
+        for k, v in _ipairs(arc) do
+            draw_poly(v)
+        end
+    end
 
-	--- Prepares the points for the arc.
+    --- Prepares the points for the arc.
     -- @param cx: X coordinate of the arc centre.
     -- @param cy: Y coordinate of the arc centre.
     -- @param radius: Arc radius.
@@ -1824,10 +1777,10 @@ do
     -- @param endang: End angle in degrees.
     -- @param roughness: The level of detail of the arc.
     -- @return: A table containing the triangles to draw the arc.
-	function DUtils:PrecacheArc(cx, cy, radius, thickness, startang, endang, roughness)
-        local triarc = {}
+    function DUtils:PrecacheArc(cx, cy, radius, thickness, startang, endang, roughness)
+        local triarc = { }
         -- Setting the minimum detail
-        local step = max(roughness or 1, 1)
+        local step = _max(roughness or 1, 1)
         startang = startang or 0
         endang = endang or 0
 
@@ -1835,36 +1788,36 @@ do
         if (startang > endang) then step = -step end
 
         -- Points of the inner arc
-        local inner = {}
+        local inner = { }
         local r = radius - thickness
 
         -- Creating the points of the inner arc
         for deg = startang, endang, step do
-            local rad = rad(deg)
-            local ox, oy = cx + (cos(rad) * r), cy + (-sin(rad) * r)
+            local rad = _rad(deg)
+            local ox, oy = cx + (_cos(rad) * r), cy + (-_sin(rad) * r)
             DTable:Add(inner, { x = ox, y = oy, u = (ox - cx) / radius + 0.5, v = (oy - cy) / radius + 0.5 })
         end
 
         -- Points of the outer arc
-        local outer = {}
+        local outer = { }
 
         -- Creating external arc points
         for deg = startang, endang, step do
-            local rad = rad(deg)
-            local ox, oy = cx + (cos(rad) * radius), cy + (-sin(rad) * radius)
+            local rad = _rad(deg)
+            local ox, oy = cx + (_cos(rad) * radius), cy + (-_sin(rad) * radius)
             DTable:Add(outer, { x = ox, y = oy, u = (ox - cx) / radius + 0.5, v = (oy - cy) / radius + 0.5 })
         end
 
         -- Point Triangulation
         for tri = 1, #inner * 2 do
-            local p1 = outer[floor(tri / 2) + 1]
-            local p3 = inner[floor((tri + 1) / 2) + 1]
+            local p1 = outer[_floor(tri / 2) + 1]
+            local p3 = inner[_floor((tri + 1) / 2) + 1]
             local p2
 
             if (tri % 2 == 0) then
-                p2 = outer[floor((tri + 1) / 2)]
+                p2 = outer[_floor((tri + 1) / 2)]
             else
-                p2 = inner[floor((tri + 1) / 2)]
+                p2 = inner[_floor((tri + 1) / 2)]
             end
 
             DTable:Add(triarc, { p1, p2, p3 })
@@ -1873,7 +1826,6 @@ do
         return triarc
     end
 end
-
 
 do
     -- Crop text if it exceeds the specified width
@@ -1896,7 +1848,7 @@ do
         end
 
         -- Initialize variables for trimming
-        local trimmedText = ""
+        local trimmedText = ''
         local currentWidth = 0
 
         -- Iterate through each character in the text
@@ -1918,8 +1870,7 @@ do
         return trimmedText .. dots
     end
 
-
-	DanLib.ScrollingText = {}
+    DanLib.ScrollingText = { }
 
     --- Draws scrolling text on the screen.
     -- @param scr: The unique identifier for the scrolling text. If nil, a new scrolling text entry is created.
@@ -1933,14 +1884,13 @@ do
     -- @return: The unique identifier for the scrolling text, or -1 if the scrolling text has completed.
     --
     -- Example of using the DrawScrollingText function:
-    --  
     --  local scrID = DUtils:DrawScrollingText(nil, 'Hello, World!', 'danlib_font_20', 100, 200, Color(255, 255, 255), 0, 0)
     -- 
-    -- local function DrawScrollingTextExample()
-    --     if scrID then
-    --         scrID = DUtils:DrawScrollingText(scrID, 'Hello, World!', 'danlib_font_20', 100, 200, Color(255, 255, 255), 0, 0)
-    --     end
-    -- end
+    --  local function DrawScrollingTextExample()
+    --      if scrID then
+    --          scrID = DUtils:DrawScrollingText(scrID, 'Hello, World!', 'danlib_font_20', 100, 200, Color(255, 255, 255), 0, 0)
+    --      end
+    --  end
 
     -- DanLib.Hook:Add('HUDPaint', 'DrawScrollingTextExample', DrawScrollingTextExample)
     function DUtils:DrawScrollingText(scr, text, font, x, y, color, ax, ay)
@@ -1950,22 +1900,28 @@ do
         -- Create a new scrolling text entry if none exists
         if (not scr) then
             scr = #DanLib.ScrollingText + 1
-            DanLib.ScrollingText[scr] = { ['text'] = '', ['count'] = 0, ['next'] = SysTime() }
+            DanLib.ScrollingText[scr] = {
+                ['text'] = '',
+                ['count'] = 0,
+                ['next'] = _SysTime()
+            }
             return scr
         end
 
         -- Validate the scrolling text entry
-        if (not DanLib.ScrollingText[scr]) then return end
+        if (not DanLib.ScrollingText[scr]) then
+            return
+        end
 
         local nowText = DanLib.ScrollingText[scr]['text']
         local w, h = self:GetTextSize(nowText, font)
 
         -- Draw the current text
-        simple_text(nowText, font, x, y, color, ax, ay)
+        _SimpleText(nowText, font, x, y, color, ax, ay)
 
         -- Update the text if the time has come to scroll the next character
-        if (DanLib.ScrollingText[scr].next <= SysTime() and DanLib.ScrollingText[scr]['count'] < #text) then
-            DanLib.ScrollingText[scr].next = SysTime() + 0.05
+        if (DanLib.ScrollingText[scr].next <= _SysTime() and DanLib.ScrollingText[scr]['count'] < #text) then
+            DanLib.ScrollingText[scr].next = _SysTime() + 0.05
             DanLib.ScrollingText[scr]['text'] = DanLib.ScrollingText[scr]['text'] .. text:sub(DanLib.ScrollingText[scr]['count'] + 1, DanLib.ScrollingText[scr]['count'] + 1)
             DanLib.ScrollingText[scr]['count'] = DanLib.ScrollingText[scr]['count'] + 1
         end
@@ -1980,22 +1936,21 @@ do
     end
 end
 
-
 do
-	/***
+    /***
      * Credits: 
-     * 		https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/includes/modules/draw.lua
-     * 		https://gist.github.com/MysteryPancake/e8d367988ef05e59843f669566a9a59f
+     *      https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/includes/modules/draw.lua
+     *      https://gist.github.com/MysteryPancake/e8d367988ef05e59843f669566a9a59f
      */
 
-    --- @type Material
+    -- @type Material
     local MaskMaterial = CreateMaterial('!bluemask', 'UnlitGeneric', {
         ['$translucent'] = 1,
         ['$vertexalpha'] = 1,
         ['$alpha'] = 1,
     })
 
-    --- @type Color
+    -- @type Color
     local whiteColor = color_white
     local renderTarget
 
@@ -2022,14 +1977,14 @@ do
         draw_func()
 
         overrideBlendFunc(true, BLEND_ZERO, BLEND_SRC_ALPHA, BLEND_DST_ALPHA, BLEND_ZERO)
-        rounded_box_ex(cornerRadius, x, y, w, h, whiteColor, roundTopLeft, roundTopRight, roundBottomLeft, roundBottomRight)
+        _RoundedBoxEx(cornerRadius, x, y, w, h, whiteColor, roundTopLeft, roundTopRight, roundBottomLeft, roundBottomRight)
         overrideBlendFunc(false)
         overrideAlphaWriteEnable(false)
         popRenderTarget()
 
         MaskMaterial:SetTexture('$basetexture', renderTarget)
 
-        no_texture()
+        _NoTexture()
         draw_color(255, 255, 255, 255)
         set_material(MaskMaterial)
         rmaterial(MaskMaterial)
@@ -2063,39 +2018,46 @@ do
     end
 end
 
-
 do
-	--- Calculates the points of an arc.
-	-- @param x (number): The X coordinate of the arc's center.
-	-- @param y (number): The Y coordinate of the arc's center.
-	-- @param ang (number): The starting angle of the arc in degrees.
-	-- @param p (number): The angle to which the arc extends in degrees.
-	-- @param rad (number): The radius of the arc.
-	-- @param seg (number): The number of segments to divide the arc into (default is 80).
-	-- @return table: A table containing the coordinates of the arc points.
+    --- Calculates the points of an arc.
+    -- @param x (number): The X coordinate of the arc's center.
+    -- @param y (number): The Y coordinate of the arc's center.
+    -- @param ang (number): The starting angle of the arc in degrees.
+    -- @param p (number): The angle to which the arc extends in degrees.
+    -- @param rad (number): The radius of the arc.
+    -- @param seg (number): The number of segments to divide the arc into (default is 80).
+    -- @return table: A table containing the coordinates of the arc points.
     local function calculateArc(x, y, ang, p, rad, seg)
         seg = seg or 80
         ang = (-ang) + 180
 
-        local circle = {}
-        DTable:Add(circle, { x = x, y = y })
+        local circle = { }
+        DTable:Add(circle, {
+            x = x,
+            y = y
+        })
 
         for i = 0, seg do
-            local a = rad((i / seg) * -p + ang)
-            DTable:Add(circle, { x = x + sin(a) * rad, y = y + cos(a) * rad })
+            local a = _rad((i / seg) * -p + ang)
+            DTable:Add(circle, {
+                x = x + _sin(a) * rad,
+                y = y + _cos(a) * rad
+            })
         end
 
         return circle
     end
     
     --- Generates arcs with varying roundness and thickness.
-	-- This function creates several arcs based on predefined roundness and thickness values.
-	-- It uses the stencil buffer for rendering the arcs.
+    -- This function creates several arcs based on predefined roundness and thickness values.
+    -- It uses the stencil buffer for rendering the arcs.
     for roundness = 32, 8, -8 do
         local index = roundness / 8
-        local multiplier = roundness * 2 / pow(2, index)
+        local multiplier = roundness * 2 / _pow(2, index)
     
-        if (index == 1) then multiplier = multiplier * 2 end
+        if (index == 1) then
+            multiplier = multiplier * 2
+        end
     
         for thickness = 1, 4 do
             local scaledThickness = thickness * 64
@@ -2150,17 +2112,19 @@ do
         local id = 'arc_' .. thickness .. '_' .. r
 
         -- Adjust thickness based on the radius
-        thickness = floor(r * 0.15)
+        thickness = _floor(r * 0.15)
 
         -- Ensure width is an integer
-        local w = ceil(w)
+        local w = _ceil(w)
         -- Ensure height is an integer
-        local h = ceil(h)
+        local h = _ceil(h)
 
         -- Calculate half of the radius
-        local half = round(r * .5)
+        local half = _round(r * .5)
         -- Set the drawing color if provided
-        if color then draw_color(color) end
+        if color then
+            draw_color(color)
+        end
 
         -- Draw the rounded corners using the arc identifier
         -- Top-left corner
@@ -2184,7 +2148,6 @@ do
     end
 end
 
-
 -- Function for drawing a square with an icon
 function DUtils:DrawSquareWithIcon(x, y, color, size, iconMaterial, roundness)
     x = x or 0
@@ -2194,7 +2157,7 @@ function DUtils:DrawSquareWithIcon(x, y, color, size, iconMaterial, roundness)
     iconMaterial = iconMaterial or _material('error')
 
     if (roundness && roundness > 0) then
-        rounded_box(roundness, x, y, size, size, color)
+        _RoundedBox(roundness, x, y, size, size, color)
         -- self:DrawOutlinedRoundedRect(roundness, x, y, size, size, 4, base:Theme('frame'))
     else
         -- If no radius is specified, just draw a rectangle
@@ -2206,13 +2169,12 @@ function DUtils:DrawSquareWithIcon(x, y, color, size, iconMaterial, roundness)
     local iconX = x + (size - iconSize) / 2 -- Centre the icon at X
     local iconY = y + (size - iconSize) / 2 -- Centre the icon in Y
 
-    if isstring(iconMaterial) then
-        self:DrawIcon(iconX, iconY, iconSize, iconSize, iconMaterial, DBase:Theme('mat', 150))
+    if _isstring(iconMaterial) then
+        self:DrawIcon(iconX, iconY, iconSize, iconSize, iconMaterial, DBase:Theme('mat'))
     else
-        self:DrawMaterial(iconX, iconY, iconSize, iconSize, DBase:Theme('mat', 150), iconMaterial)
+        self:DrawMaterial(iconX, iconY, iconSize, iconSize, DBase:Theme('mat'), iconMaterial)
     end
 end
-
 
 --- Plays a sound from the DanLib sound configuration.
 -- @param soundName string: The name of the sound to play.
@@ -2220,14 +2182,14 @@ end
 -- @throws error: If the specified sound does not exist in the configuration.
 function DBase:PlaySound(soundName)
     -- Validate input
-    if (type(soundName) ~= 'string' or soundName == '') then
-        error('Invalid sound name provided. It must be a non-empty string.')
+    if (_type(soundName) ~= 'string' or soundName == '') then
+        _error('Invalid sound name provided. It must be a non-empty string.')
     end
 
     -- Check if the sound exists in the configuration
     local soundPath = DanLib.Config.Sound[soundName]
     if (not soundPath) then
-        error('Sound "' .. soundName .. '" does not exist in the sounds table.')
+        _error('Sound "' .. soundName .. '" does not exist in the sounds table.')
     end
 
     -- Play the sound

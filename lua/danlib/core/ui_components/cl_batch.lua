@@ -1,34 +1,12 @@
-/***
- *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
- *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
- *                  GitHub: https://github.com/denchik5133
- *                
- *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
- *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
- *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
- *   @notes         For feature requests or contributions, please open an issue on GitHub.
- *	 @source 		https://github.com/Jaffies/paint/blob/main/lua/paint/batch_cl.lua
- */
-
-
----@diagnostic disable: deprecated
+-- @diagnostic disable: deprecated
 -- local paint = paint--[[@as paint]]
----# Batching library of paint lib 
----This is a really hard to explain thing, and made for experienced lua coders
----
----This library allows you to generate IMeshes on the fly, by using default
----paint library draw functions
----
----In order to cache resulted IMesh of course!
----
----That allows you to batch your multiple shape in 1 single mesh in order to save draw calls
----@class DanLib.batch
+-- # Batching library of paint lib 
+-- This is a really hard to explain thing, and made for experienced lua coders
+-- This library allows you to generate IMeshes on the fly, by using default
+-- paint library draw functions
+-- In order to cache resulted IMesh of course!
+-- That allows you to batch your multiple shape in 1 single mesh in order to save draw calls
+-- @class DanLib.batch
 local batch = {}
 batch.batching = false
 
@@ -54,18 +32,18 @@ end
 ]]
 
 --- Internal function
----@param tab table
----@param i integer
----@return number
----@return number
----@return number
----@return Color
----@return number
----@return number
----@return Color
----@return number
----@return number
----@return Color
+-- @param tab table
+-- @param i integer
+-- @return number
+-- @return number
+-- @return number
+-- @return Color
+-- @return number
+-- @return number
+-- @return Color
+-- @return number
+-- @return number
+-- @return Color
 local function getVariables(tab, i)
 	return tab[i], tab[i + 1], tab[i + 2], tab[i + 3], tab[i + 4], tab[i + 5], tab[i + 6], tab[i + 7], tab[i + 8], tab[i + 9]
 end
@@ -80,8 +58,8 @@ do
 	local PRIMITIVE_TRIANGLES = MATERIAL_TRIANGLES
 
 	--- Stops batching queue and returns builded mesh.
-	---@return IMesh batchedMesh #batched mesh
-	---@nodiscard
+	-- @return IMesh batchedMesh #batched mesh
+	-- @nodiscard
 	function batch.stopBatching()
 		local tab = batch.batchTable
 
@@ -128,12 +106,14 @@ do
 	local startBatching = batch.startBatching
 	local stopBatching = batch.stopBatching
 
-	---@param self InjectedPanel
-	---@param x number
-	---@param y number
+	-- @param self InjectedPanel
+	-- @param x number
+	-- @param y number
 	local panelPaint = function(self, x, y)
 		local iMesh = self.iMesh
-		if (not iMesh) then return end
+		if (not iMesh) then
+			return
+		end
 
 		do
 			local beforePaint = self.BeforePaint
@@ -157,13 +137,15 @@ do
 		end
 	end
 
-	---@param self InjectedPanel
-	---@param x number
-	---@param y number
+	-- @param self InjectedPanel
+	-- @param x number
+	-- @param y number
 	local panelRebuildMesh = function(self, x, y)
 		resetZ()
 			local iMesh = self.iMesh
-			if iMesh then meshDestroy(iMesh) end
+			if iMesh then
+				meshDestroy(iMesh)
+			end
 
 			local drawFunc = self.PaintMesh
 			if drawFunc then
@@ -174,9 +156,9 @@ do
 		resetZ()
 	end
 
-	---@param self InjectedPanel
-	---@param x number
-	---@param y number
+	-- @param self InjectedPanel
+	-- @param x number
+	-- @param y number
 	local panelOnSizeChanged = function(self, x, y)
 		local rebuildMesh = self.RebuildMesh
 
@@ -191,21 +173,21 @@ do
 		end
 	end
 
-	---@class InjectedPanel : Panel # The injected panel is a supporting class that actually behaves as a wrapped pannel. Made for people who like
-	---type checking, and lsp things. Used internally only.
-	---@field Paint function
-	---@field OnSizeChanged function
-	---@field OldOnSizeChanged function?
-	---@field RebuildMesh function
-	---@field DisableBoundaries boolean?
-	---@field BeforePaint function?
-	---@field AfterPaint function?
-	---@field PaintMesh function?
-	---@field iMesh IMesh?
+	-- @class InjectedPanel : Panel # The injected panel is a supporting class that actually behaves as a wrapped pannel. Made for people who like
+	-- type checking, and lsp things. Used internally only.
+	-- @field Paint function
+	-- @field OnSizeChanged function
+	-- @field OldOnSizeChanged function?
+	-- @field RebuildMesh function
+	-- @field DisableBoundaries boolean?
+	-- @field BeforePaint function?
+	-- @field AfterPaint function?
+	-- @field PaintMesh function?
+	-- @field iMesh IMesh?
 
-	---Wraps panel with some hacky functions that overrides paint function and OnChangeSize
-	---That is made for panel to use Panel:PaintMesh() when panel is updated (size updated/etc)
-	---@param panel Panel
+	-- Wraps panel with some hacky functions that overrides paint function and OnChangeSize
+	-- That is made for panel to use Panel:PaintMesh() when panel is updated (size updated/etc)
+	-- @param panel Panel
 	function batch.wrapPanel(panel)
 		---@cast panel InjectedPanel
 		panel.Paint = panelPaint
@@ -216,17 +198,17 @@ do
 end
 
 do
-	---Adds triangle to batching queue. If you want to manually add some figures to paint batching, then you can use this.
-	---@param z number Z position of next triangle. You want to use paint.incrementZ for that
-	---@param x1 number
-	---@param y1 number
-	---@param color1 Color color of first vertex
-	---@param x2 number
-	---@param y2 number
-	---@param color2 Color color of second vertex
-	---@param x3 number
-	---@param y3 number
-	---@param color3 Color color of third vertex
+	-- Adds triangle to batching queue. If you want to manually add some figures to paint batching, then you can use this.
+	-- @param z number Z position of next triangle. You want to use paint.incrementZ for that
+	-- @param x1 number
+	-- @param y1 number
+	-- @param color1 Color color of first vertex
+	-- @param x2 number
+	-- @param y2 number
+	-- @param color2 Color color of second vertex
+	-- @param x3 number
+	-- @param y3 number
+	-- @param color3 Color color of third vertex
 	function batch.addTriangle(z, x1, y1, color1, x2, y2, color2, x3, y3, color3)
 		local len = batchTable[0]
 		batchTable[len + 1] = x1
@@ -243,10 +225,9 @@ do
 	end
 end
 
----@type table current batching table
+-- @type table current batching table
 batch.batchTable = batchTable
 
 -- used _G because lsp doesn't recognize the table
-
---- Batch library for paint lib
+-- Batch library for paint lib
 DanLib.batch = batch

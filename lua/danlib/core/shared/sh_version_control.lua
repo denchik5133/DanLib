@@ -1,16 +1,20 @@
-/*** 
- *   @system        DanLib Version Control & Validation
- *   @version       1.0.0
+/***
+ *   @addon         DanLib
+ *   @component     Version Control & Validation
+ *   @license       MIT License
+ *   @version       1.2.0
  *   @release_date  17/12/2024
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *   
  *   @description   Semantic versioning system with compatibility checking and automatic update detection.
  *                  Validates addon dependencies, prevents incompatible loads, and notifies about updates.
  *   
- *   @features
+ *   @functions
  *                  - Semantic versioning (major.minor.patch) with comparison
  *                  - Automatic compatibility validation before addon load
  *                  - GitHub-based update checking with download URLs
@@ -18,26 +22,29 @@
  *                  - Auto-registration via loader hooks
  *                  - Centralized addon/library registry
  *                  - Development version detection (ahead of GitHub)
- *   
- *   @license       MIT License
+ *
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/DanLib
+ *
  *   @notes         Requires HTTP module for update checking. GitHub JSON URL configurable in Config.GitHub.URL.
  *                  For feature requests or bug reports, please open an issue on GitHub.
  */
 
 
 
-DanLib = DanLib or {}
-DanLib.VersionControl = DanLib.VersionControl or {}
+
+local DHook = DanLib.Hook
+local DTable = DanLib.Table
+local DNetworkUtil = DanLib.NetworkUtil
+
+DanLib.VersionControl = DanLib.VersionControl or { }
 local DVersionControl = DanLib.VersionControl
 
 -- Cached functions
 local _pairs = pairs
+local _ipairs = ipairs
 local _stringformat = string.format
 local _stringExplode = string.Explode
-local _utilJSONToTable = util.JSONToTable
-local _timerSimple = timer.Simple
-local _tableInsert = table.insert
-local _hookAdd = hook.Add
 local _tonumber = tonumber
 local _tostring = tostring
 local _MsgC = MsgC
@@ -56,7 +63,7 @@ local COLOR_GRAY = _Color(150, 150, 150)
 local COLOR_WHITE = color_white
 
 
-DVersionControl.Registered = {}
+DVersionControl.Registered = { }
 
 -- Configuration
 DVersionControl.Config = {
@@ -86,21 +93,50 @@ DVersionControl.Config = {
 --- Parse version string into components
 -- @param version (string): Version string (e.g., '3.2.0')
 -- @return table|nil Parsed version table with major, minor, patch fields
+--- Pre-release keywords that mark a version as unstable.
+local PRE_RELEASE_KEYWORDS = { 'beta', 'alpha', 'dev', 'rc', 'nightly', 'snapshot', 'preview' }
+
+--- Checks whether a version string contains any pre-release keyword.
+-- @param lower (string): Lower-cased version string.
+-- @return boolean
+local function _isPreRelease(lower)
+    for _, kw in _ipairs(PRE_RELEASE_KEYWORDS) do
+        if lower:find(kw, 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
 local function _parseVersion(version)
     if (not version) then
         return nil
     end
-    
-    local parts = _stringExplode('.', _tostring(version))
+
+    local str   = _tostring(version)
+    local lower = str:lower()
+    local preRelease = _isPreRelease(lower)
+
+    -- Strip pre-release suffix so '1.0.0-beta' parses as '1.0.0'
+    local numericStr = str:match('^([%d%.]+)') or str
+    local parts = _stringExplode('.', numericStr)
+
     if (#parts < 2) then
-        return nil
+        -- Pure non-semver label: 'BETA', 'DEV', etc.
+        return {
+            major = 0, minor = 0, patch = 0,
+            string = str,
+            isPreRelease = true,
+            preReleaseLabel = str:upper()
+        }
     end
-    
+
     return {
         major = _tonumber(parts[1]) or 0,
         minor = _tonumber(parts[2]) or 0,
         patch = _tonumber(parts[3]) or 0,
-        string = version
+        string = str,
+        isPreRelease = preRelease
     }
 end
 
@@ -190,7 +226,29 @@ function DVersionControl:Register(info)
     if (not info.version) then
         return false, 'Missing version'
     end
-    
+
+    -- Warn immediately when a pre-release version is registered
+    local _parsedVer = _parseVersion(info.version)
+    if (_parsedVer and _parsedVer.isPreRelease) then
+        local label = _parsedVer.preReleaseLabel or _parsedVer.string
+        _MsgC(COLOR_GRAY,    '\n/***\n')
+        _MsgC(COLOR_GRAY,    ' *   ')
+        _MsgC(COLOR_WARNING, 'PRE-RELEASE VERSION\n')
+        _MsgC(COLOR_GRAY,    ' *\n')
+        _MsgC(COLOR_GRAY,    ' *   @addon         ')
+        _MsgC(COLOR_INFO,    info.name, '\n')
+        _MsgC(COLOR_GRAY,    ' *   @version       ')
+        _MsgC(COLOR_WARNING, info.version, '\n')
+        _MsgC(COLOR_GRAY,    ' *\n')
+        _MsgC(COLOR_GRAY,    ' *   @warning       ')
+        _MsgC(COLOR_WARNING, 'This is a pre-release build (' .. label .. ').\n')
+        _MsgC(COLOR_GRAY,    ' *                  ')
+        _MsgC(COLOR_GRAY,    'Bugs and breaking changes are expected.\n')
+        _MsgC(COLOR_GRAY,    ' *                  ')
+        _MsgC(COLOR_GRAY,    'Not recommended for production servers.\n')
+        _MsgC(COLOR_GRAY,    ' */\n\n')
+    end
+
     local isAddon = info.dependsOn ~= nil or info.requiredVersion ~= nil or info.requiredDanLibVersion ~= nil
     if isAddon then
         local dependsOn = info.dependsOn or 'DanLib'
@@ -229,6 +287,7 @@ function DVersionControl:Register(info)
             version = info.version,
             parsedVersion = _parseVersion(info.version),
             githubName = info.githubName or info.name,
+            githubAliases = info.githubAliases or { },
             license = info.license,
             dependsOn = dependsOn,
             requiredVersion = requiredVersion,
@@ -245,6 +304,7 @@ function DVersionControl:Register(info)
             version = info.version,
             parsedVersion = _parseVersion(info.version),
             githubName = info.githubName or info.name,
+            githubAliases = info.githubAliases or { },
             license = info.license or 'Unknown',
             registeredAt = _osTime()
         }
@@ -280,7 +340,7 @@ function DVersionControl:GetAll(itemType)
         return self.Registered
     end
     
-    local result = {}
+    local result = { }
     for name, item in _pairs(self.Registered) do
         if (item.type == itemType) then
             result[name] = item
@@ -323,7 +383,7 @@ function DVersionControl:CheckForUpdates(name, callback)
                 return
             end
             
-            local success, data = _pcall(_utilJSONToTable, body)
+            local success, data = _pcall(util.JSONToTable, body)
             if (not success or not data) then
                 if callback then
                     callback(false, nil, nil, 'JSON parse failed')
@@ -331,7 +391,19 @@ function DVersionControl:CheckForUpdates(name, callback)
                 return
             end
             
+            -- Try primary githubName, then aliases
             local itemData = data[item.githubName]
+            local resolvedKey = item.githubName
+            if (itemData == nil and item.githubAliases) then
+                for _, alias in _ipairs(item.githubAliases) do
+                    if (data[alias] ~= nil) then
+                        itemData = data[alias]
+                        resolvedKey = alias
+                        break
+                    end
+                end
+            end
+            
             local latestVersion, downloadURL
             
             if (_type(itemData) == 'table') then
@@ -339,10 +411,11 @@ function DVersionControl:CheckForUpdates(name, callback)
                 downloadURL = itemData.url
             elseif (_type(itemData) == 'string') then
                 latestVersion = itemData
-                downloadURL = data[item.githubName .. '.url']
+                downloadURL = data[resolvedKey .. '.url']
             end
             
             if (not latestVersion) then
+                _MsgC(COLOR_ERROR, '[VersionControl] No version info for "', name, '" (key: "', item.githubName, '")\n')
                 if callback then
                     callback(false, item.version, nil, 'No version info')
                 end
@@ -419,7 +492,7 @@ function DVersionControl:CheckForUpdates(name, callback)
 end
 
 -- Auto registration hook
-_hookAdd('DanLib.Loader.OnRegister', 'DanLib.VersionControl.AutoRegister', function(loader)
+DHook:Add('DanLib.Loader.OnRegister', 'DanLib.VersionControl.AutoRegister', function(loader)
     if (not loader) then
         return
     end
@@ -433,8 +506,8 @@ _hookAdd('DanLib.Loader.OnRegister', 'DanLib.VersionControl.AutoRegister', funct
         requiredVersion = loader:GetRequiredVersion()
     })
     
-    if (success and DVersionControl.Config.UpdateCheck.AutoCheck) then
-        _timerSimple(5, function()
+    if (success and DVersionControl.Config.UpdateCheck.AutoCheck and SERVER) then
+        DanLib.Timer:Simple(5, function()
             DVersionControl:CheckForUpdates(loader:GetName())
         end)
     end
@@ -446,14 +519,14 @@ function DVersionControl:PrintInfo()
     _MsgC(COLOR_INFO, '  Version Control System\n')
     _MsgC(COLOR_INFO, '========================================\n\n')
     
-    local libraries = {}
-    local addons = {}
+    local libraries = { }
+    local addons = { }
     
     for name, item in _pairs(DVersionControl.Registered) do
         if (item.type == 'library') then
-            _tableInsert(libraries, item)
+            DTable:Add(libraries, item)
         else
-            _tableInsert(addons, item)
+            DTable:Add(addons, item)
         end
     end
     
@@ -487,6 +560,6 @@ function DVersionControl:PrintInfo()
     _MsgC(COLOR_INFO, '\n========================================\n\n')
 end
 
-concommand.Add('danlib_version', function()
+DanLib.Concommand:Add('danlib_version', function()
     DVersionControl:PrintInfo()
 end)

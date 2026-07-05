@@ -1,9 +1,13 @@
 /***
- *   @component     DanLib Message Formatting & Utilities
- *   @version       1.8.0
- *   @file          sh_func.lua
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @addon         DanLib
+ *   @component     Message Formatting & Utilities
+ *   @license       MIT License
+ *   @version       1.8.1
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
@@ -11,33 +15,30 @@
  *                  utility functions. Supports multiple color formats, theme integration,
  *                  and efficient network transmission with minimal overhead.
  *
- *   @part_of       DanLib v3.0.0 and higher
- *                  https://github.com/denchik5133/DanLib
- *
- *   @features      - Color tags: RGB, RGBA, theme names ({color:Blue}, {color:255,0,0})
+ *   @functions     
+ *                  - Color tags: RGB, RGBA, theme names ({color:Blue}, {color:255,0,0})
  *                  - Flexible spacing in tags ({color: 255, 0, 0} supported)
  *                  - Color object caching (~3x faster, auto-cleanup at 50 items)
  *                  - Distance-based broadcasting
  *
- *   @usage         DBase:SendMessage(ply, TYPE_INFO, '{color:Gold}Reward:{/color:} +500$')
+ *   @usage         
+ *                  DBase:SendMessage(ply, TYPE_INFO, '{color:Gold}Reward:{/color:} +500$')
  *                  DBase:SendMessageDistance(ply, TYPE_WARNING, 500, '{color:Red}Alert!')
  *
- *   @dependencies  - DanLib.Func, DanLib.Table, DanLib.Network, DanLib.Config.Theme
- *
- *   @performance   - 20k+ messages/sec | Color caching | Single-pass parsing
- *                  - Network overhead: -30% | Memory: stable with auto-cleanup
- *
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/DanLib
  */
 
 
 
-local tag = 'DanLib'
 local DBase = DanLib.Func
+local DNet = DanLib.Net
 local DTable = DanLib.Table
-local DNetwork = DanLib.Network
+local DPlayerUtil = DanLib.PlayerUtil
 
 local _type = type
+local _unpack = unpack
+local _IsValid = IsValid
 local _ipairs = ipairs
 local _sub = string.sub
 local _find = string.find
@@ -48,7 +49,7 @@ local _tonumber = tonumber
 local _format = string.format
 
 -- Color cache for performance optimization
-local colorCache = {}
+local colorCache = { }
 local cacheSize = 0
 local maxCacheSize = 50
 
@@ -64,7 +65,7 @@ local function getCachedColor(r, g, b, a)
     if (not colorCache[key]) then
         -- Limit cache size to prevent memory bloat
         if (cacheSize >= maxCacheSize) then
-            colorCache = {}
+            colorCache = { }
             cacheSize = 0
         end
         
@@ -87,13 +88,13 @@ end
 -- @param ...: Arbitrary number of message arguments (strings, Color objects, tables)
 -- @return table: Formatted arguments with text and color objects
 local function gormatMessageArgs(...)
-    local formattedArgs = {}
+    local formattedArgs = { }
     local defaultColor = getCachedColor(255, 255, 255, 255)
     local currentColor = defaultColor
     local themeCache = DanLib.Config.Theme
     
-    for _, message in _ipairs({...}) do
-        if _type(message) == 'string' then
+    for _, message in _ipairs({ ... }) do
+        if (_type(message) == 'string') then
             local pos = 1
             local len = #message
             
@@ -138,7 +139,7 @@ local function gormatMessageArgs(...)
                         end
                     else
                         -- Parse RGB/RGBA numbers
-                        local nums = {}
+                        local nums = { }
                         for num in _gmatch(content, '%d+') do
                             nums[#nums + 1] = _tonumber(num)
                         end
@@ -156,7 +157,7 @@ local function gormatMessageArgs(...)
             -- Color object passed directly
             currentColor = message
             DTable:Add(formattedArgs, currentColor)
-        elseif _type(message) == 'table' then
+        elseif (_type(message) == 'table') then
             -- Table passed directly
             DTable:Add(formattedArgs, message)
         else
@@ -176,16 +177,16 @@ function DBase:SendMessage(pPlayer, msgType, ...)
 
     -- Send message over network
     if SERVER then
-        DNetwork:Start(tag .. ':Message')
-        DNetwork:WriteInt(msgType, 8)
-        DNetwork:WriteTable(args)
-        DNetwork:SendToPlayer(pPlayer)
+        DNet:Open('DanLib:Message')
+            :Int(msgType, 8)
+            :Tbl(args)
+            :Send(pPlayer)
     elseif CLIENT then
-        DNetwork:Start(tag .. ':Message')
-        DNetwork:WriteEntity(pPlayer)
-        DNetwork:WriteInt(msgType, 8)
-        DNetwork:WriteTable(args)
-        DNetwork:SendToServer()
+        DNet:Open('DanLib:Message')
+            :Ent(pPlayer)
+            :Int(msgType, 8)
+            :Tbl(args)
+            :Up()
     end
 end
 
@@ -195,81 +196,28 @@ end
 -- @param distance (number): Maximum distance to send the message (0 = all players)
 -- @param ...: Additional arguments for the message
 function DBase:SendMessageDistance(pPlayer, type, distance, ...) 
-    if not IsValid(pPlayer) then
+    if (not _IsValid(pPlayer)) then
         return
     end
 
     local args = { ... }
 
-    if distance == 0 then
-        -- Send to all players
-        for _, v in pairs(player.GetAll()) do
-            self:SendMessage(v, type, unpack(args))
-        end
+    if (distance == 0) then
+        self:SendMessage(nil, type, _unpack(args))
     else
         -- Send to players within distance
         local playerPos = pPlayer:GetPos()
-        for _, v in _ipairs(player.GetAll()) do
-            if IsValid(v) and v:GetPos():Distance(playerPos) <= distance then
-                self:SendMessage(v, type, unpack(args))
+        for _, v in _ipairs(DPlayerUtil:GetAll()) do
+            if (_IsValid(v) and v:GetPos():Distance(playerPos) <= distance) then
+                self:SendMessage(v, type, _unpack(args))
             end
         end
     end
-end
-
---- Gets the name of a key by its code.
--- @param key (number): Key code
--- @return string: Key name or 'UNKNOWN KEY' if the code is not recognised
-function DBase:GetKeyName(key)
-    if (not isnumber(key)) then 
-        return 'UNKNOWN KEY' 
-    end
-
-    if (key >= MOUSE_MIDDLE) then
-        return ({
-            [MOUSE_MIDDLE] = 'MIDDLE MOUSE',
-            [MOUSE_4] = 'MOUSE 4',
-            [MOUSE_5] = 'MOUSE 5',
-            [MOUSE_WHEEL_UP] = 'MOUSE WHEEL UP',
-            [MOUSE_WHEEL_DOWN] = 'MOUSE WHEEL DOWN'
-        })[key] or 'UNKNOWN MOUSE'
-    else
-        return input.GetKeyName(key) and input.GetKeyName(key):upper() or 'UNKNOWN KEY'
-    end
-end
-
---- Gets the player's admin group.
--- @param pPlayer (Player): The player to get the group for
--- @return string: The name of the admin group or an empty string
-function DBase:GetAdminGroup(pPlayer)
-    if serverguard then
-        return serverguard.player:GetRank(pPlayer)
-    else
-        return pPlayer:GetNWString('usergroup', '')
-    end
-
-    return ''
 end
 
 --- Checks if the player has administrator access.
 -- @param pPlayer (Player): The player for whom you want to check access
 -- @return boolean: true if the player is a super administrator, otherwise false
 function DBase:HasAdminAccess(pPlayer)
-    return IsValid(pPlayer) and pPlayer:IsSuperAdmin() or false
-end
-
---- Edits the NPC for the player.
--- @param pPlayer (Player): The player who is editing the NPC
--- @param args (table): Arguments to edit the NPC
-function DBase:NPCsEditor(pPlayer, args)
-    if SERVER then
-        DNetwork:Start(tag .. '.Tool.SpawnNPCs')
-        DNetwork:WriteTable(args)
-        DNetwork:SendToPlayer(pPlayer)
-    elseif CLIENT then
-        DNetwork:Start(tag .. '.Tool.SpawnNPCs')
-        DNetwork:WriteTable(args)
-        DNetwork:WriteEntity(pPlayer)
-        DNetwork:SendToServer()
-    end
+    return _IsValid(pPlayer) and pPlayer:IsSuperAdmin() or false
 end

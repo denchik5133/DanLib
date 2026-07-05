@@ -1,9 +1,13 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     UI ColorMixer
+ *   @license       MIT License
+ *   @version       1.0.2
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
@@ -12,8 +16,9 @@
  *                  2. Text input accepts only numbers and commas
  *                  3. Auto-fill prevents empty text field
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
@@ -21,6 +26,7 @@
 
 local DBase = DanLib.Func
 local DUtils = DanLib.Utils
+local DTable = DanLib.Table
 local DCustomUtils = DanLib.CustomUtils.Create
 
 local math = math
@@ -42,12 +48,12 @@ local formatHandlers = {
         for value in gmatch(input:gsub('%s+', ''), '([^,]+)') do
             local num = tonumber(value)
             if num then
-                table.insert(values, clamp(num, 0, 255))
+                DTable:Add(values, clamp(num, 0, 255))
             end
         end
         
         -- Ensure we have 3 or 4 values (RGB or RGBA)
-        if #values >= 3 then
+        if (#values >= 3) then
             return values[1], values[2], values[3], values[4] or 255
         end
         
@@ -55,7 +61,7 @@ local formatHandlers = {
         return DUtils:ParseColor(input, 'RGB')
     end,
     HEX = function(input)
-        if (not input or input == "") then
+        if (not input or input == '') then
         	return nil
         end
 
@@ -71,7 +77,7 @@ local formatHandlers = {
         for value in gmatch(input:gsub('%s+', ''), '([^,]+)') do
             local num = tonumber(value)
             if num then
-                table.insert(values, clamp(num, 0, 100))
+                DTable:Add(values, clamp(num, 0, 100))
             end
         end
         
@@ -99,7 +105,7 @@ local formatHandlers = {
         for value in gmatch(input:gsub('%s+', ''), "([^,]+)") do
             local num = tonumber(value)
             if num then
-                table.insert(values, num)
+                DTable:Add(values, num)
             end
         end
         
@@ -133,7 +139,7 @@ local formatHandlers = {
         for value in gmatch(input:gsub('%s+', ''), '([^,]+)') do
             local num = tonumber(value)
             if num then
-                table.insert(values, num)
+                DTable:Add(values, num)
             end
         end
         
@@ -299,13 +305,15 @@ function MIXER:Init()
     
     -- Text input change event with complete validation and auto-fill
     self.input.textEntry:ApplyEvent('OnTextChanged', function()
-        if self.isUpdating then return end
+        if self.isUpdating then
+            return
+        end
         
         local inputValue = self.input:GetValue()
         
         -- Auto-fill empty field with current color
         if (not inputValue or inputValue == '') then
-            timer.Simple(0.01, function()
+            DanLib.Timer:Simple(0.01, function()
                 if IsValid(self) and IsValid(self.input) then
                     self:UpdateTextFromColor()
                 end
@@ -532,6 +540,9 @@ end
 -- Standard color mixer methods
 function MIXER:SetPalette(bEnabled)
     self.m_bPalette = bEnabled
+    if IsValid(self.Palette) then
+        self.Palette:SetVisible(bEnabled)
+    end
     self:InvalidateLayout()
 end
 
@@ -738,11 +749,11 @@ local function testCompleteColorMixer()
         hover = { Color(106, 178, 242, 50), nil, 6 },
         text = { 'Test All Features', 'danlib_font_16', nil, nil, Color(106, 178, 242) },
         click = function()
-            print('=== COMPLETE COLOR MIXER TEST ===')
-            print('Current Format:', Picker:GetCurrentFormat())
-            print('Color in format:', Picker:GetColor())
-            print('RGB Color:', Picker:GetRGBColor())
-            print('===================================')
+            DBase:Print('=== COMPLETE COLOR MIXER TEST ===')
+            DBase:Print('Current Format:', Picker:GetCurrentFormat())
+            DBase:Print('Color in format:', Picker:GetColor())
+            DBase:Print('RGB Color:', Picker:GetRGBColor())
+            DBase:Print('===================================')
         end
     })
 

@@ -1,32 +1,43 @@
 /***
  *   @addon         DanLib
- *   @version       3.0.0
- *   @release_date  10/4/2023
- *   @author        denchik
- *   @contact       Discord: denchik_gm
+ *   @component     UI Tutorial
+ *   @license       MIT License
+ *   @version       1.0.3
+ *   @release_date  10/04/2023
+ *   @author        denchik, CastleKeeper
+ *
+ *   @contact       
+ *                  Discord: denchik_gm
  *                  Steam: https://steamcommunity.com/profiles/76561198405398290/
  *                  GitHub: https://github.com/denchik5133
  *                
  *   @description   Universal library for GMod Lua, combining all the necessary features to simplify script development. 
  *                  Avoid code duplication and speed up the creation process with this powerful and convenient library.
  *
- *   @usage         !danlibmenu (chat) | danlibmenu (console)
- *   @license       MIT License
+ *   @part_of       DanLib v3.0.0 and higher
+ *                  https://github.com/denchik5133/danlib
+ *
  *   @notes         For feature requests or contributions, please open an issue on GitHub.
  */
 
 
 
-local base = DanLib.Func
+local DBase = DanLib.Func
 local defaultFont = 'danlib_font_18'
-local utils = DanLib.Utils
+local DUtils = DanLib.Utils
+local DHook = DanLib.Hook
+local DCookieUtils = DanLib.CookieUtils
+local DCustomUtils = DanLib.CustomUtils.Create
 
+local _IsValid = IsValid
+local _Clamp = math.Clamp
+local _min = math.min
 
 --- Creates a panel to display the tutorial.
 -- @param parent (Panel): The parent panel to which the tutorial panel will be attached.
 -- @return (Panel): The created panel of the tutorial.
-function base.CreatePanelTutorial(parent)
-    local PANEL = DanLib.CustomUtils.Create(parent)
+function DBase:CreateUITutorial(parent)
+    local PANEL = DCustomUtils(parent)
 
     PANEL:SetDrawOnTop(true)
     PANEL:ApplyAttenuation(0.2)
@@ -45,27 +56,27 @@ function base.CreatePanelTutorial(parent)
         local tutorialConfig = DanLib.BaseConfig.Tutorials[tutorialKey]
 
         -- Creating a progress bar
-        self.progressPanel = DanLib.CustomUtils.Create(self)
+        self.progressPanel = DCustomUtils(self)
         self.progressPanel:Pin(TOP)
         self.progressPanel:SetTall(34)
-        self.progressPanel:ApplyBackground(base:Theme('line_up'), 6, TOP)
+        self.progressPanel:ApplyBackground(DBase:Theme('line_up'), 6, { true, true, false, false })
         self.progressPanel:ApplyEvent(nil, function(sl, w, h)
             -- Progress bar drawing with interpolation
-            self.progressWidth = Lerp(0.1, self.progressWidth, w * math.Clamp((self.stepKey - 1) / #tutorialConfig.Steps, 0, 1))
-            utils:DrawRoundedBox(0, h - 2, self.progressWidth, 2, base:Theme('decor2'))
-            draw.SimpleText('Chapter: ' .. tutorialConfig.Title, defaultFont, 8, h / 2 - 2, base:Theme('text'), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-            draw.SimpleText('Step ' .. self.stepKey .. '/' .. #tutorialConfig.Steps, defaultFont, w - 8, h / 2 - 2, base:Theme('text'), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+            self.progressWidth = Lerp(0.1, self.progressWidth, w * _Clamp((self.stepKey - 1) / #tutorialConfig.Steps, 0, 1))
+            DUtils:DrawRoundedBox(0, h - 2, self.progressWidth, 2, DBase:Theme('decor2'))
+            draw.SimpleText('Chapter: ' .. tutorialConfig.Title, defaultFont, 8, h / 2 - 2, DBase:Theme('text'), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            draw.SimpleText('Step ' .. self.stepKey .. '/' .. #tutorialConfig.Steps, defaultFont, w - 8, h / 2 - 2, DBase:Theme('text'), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
         end)
 
-        self.scrollPanel = DanLib.CustomUtils.Create(self, 'DanLib.UI.Scroll')
+        self.scrollPanel = DCustomUtils(self, 'DanLib.UI.Scroll')
         self.scrollPanel:Pin(FILL, 6)
         -- self.scrollPanel:ToggleScrollBar()
 
         -- Creating a step information panel
-        self.stepInfo = DanLib.CustomUtils.Create(self.scrollPanel)
+        self.stepInfo = DCustomUtils(self.scrollPanel)
         self.stepInfo:Pin(TOP)
         self.stepInfo:ApplyEvent(nil, function(sl, w, h)
-            utils:DrawParseText(sl.stepText or '', defaultFont, 8, 4, base:Theme('text'), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, self.scrollPanel:GetWide() - 22, TEXT_ALIGN_LEFT)
+            DUtils:DrawParseText(sl.stepText or '', defaultFont, 8, 4, DBase:Theme('text'), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, self.scrollPanel:GetWide() - 22, TEXT_ALIGN_LEFT)
         end)
         
         -- Set the maximum height
@@ -76,8 +87,8 @@ function base.CreatePanelTutorial(parent)
             self.stepKey = stepKey
 
             sl.stepText = tutorialConfig.Steps[stepKey]
-            local text = utils:TextWrap(sl.stepText, defaultFont, self.scrollPanel:GetWide() - 22, true)
-            local text_h = utils:TextSize(text, defaultFont).h
+            local text = DUtils:TextWrap(sl.stepText, defaultFont, self.scrollPanel:GetWide() - 22, true)
+            local text_h = DUtils:TextSize(text, defaultFont).h
 
             local additionalHeight = (tutorialConfig.Further == false) and 2 or 24
             local additionalButton = (tutorialConfig.Further == false) and 0 or 8
@@ -86,18 +97,18 @@ function base.CreatePanelTutorial(parent)
             -- Set the height taking into account the maximum limitation
             sl:SetTall(6 + text_h)
             -- Update the total height of the panel
-            self:SetTall(math.min(self.defaultH + 24 + additionalHeight + additionalButton + sl:GetTall(), MAX_HEIGHT))
+            self:SetTall(_min(self.defaultH + 24 + additionalHeight + additionalButton + sl:GetTall(), MAX_HEIGHT))
         end
 
         local closeTutorial = tutorialKey >= #DanLib.BaseConfig.Tutorials
 
         -- Creating a "Further" button, if necessary
         if tutorialConfig.Further then
-            self.ButtonFurther = base.CreateUIButton(self, {
-                dock_indent = {BOTTOM, 8, 6, 8, 6},
-                text = {closeTutorial and 'Close' or 'Further'},
+            self.ButtonFurther = DBase.CreateUIButton(self, {
+                dock_indent = { BOTTOM, 8, 6, 8, 6 },
+                text = { closeTutorial and 'Close' or 'Further' },
                 click = function(sl)
-                    base:TutorialSequence(tutorialKey, self.stepKey)
+                    DBase:TutorialSequence(tutorialKey, self.stepKey)
                 end
             })
         end
@@ -115,29 +126,57 @@ function base.CreatePanelTutorial(parent)
     PANEL:ApplyEvent(nil, function(sl, w, h)
         DanLib.DrawShadow:Begin()
         local x, y = sl:LocalToScreen(0, 0)
-        utils:DrawRoundedBox(x, y, w, h, base:Theme('background'))
+        DUtils:DrawRoundedBox(x, y, w, h, DBase:Theme('background'))
         DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false)
     end)
 
     return PANEL
 end
 
+-- Setting up a tutorial
+local function _setupTutorial(mainMenu)
+    local pPlayer = LocalPlayer()
+    
+    if (not DBase.HasPermission(pPlayer, 'Tutorial')) then
+        return
+    end
+    
+    local tutorialStep = DCookieUtils:GetNumber('DanLib.TutorialCompleted', 0)
+    local totalTutorials = #DanLib.BaseConfig.Tutorials
+    
+    if (tutorialStep < totalTutorials and not _IsValid(DANLIB_TUTORIAL)) then
+        DANLIB_TUTORIAL = DBase:CreateUITutorial(mainMenu)
+        DANLIB_TUTORIAL:SetPos(50, 100)
+        DANLIB_TUTORIAL:SetTutorial(tutorialStep + 1)
+    end
+end
+
+-- Registering a hook for Tutorial
+DHook:Add('DanLib.MainMenu', 'DanLib.Menu.SetupTutorial', function(mainMenu)
+    _setupTutorial(mainMenu)
+end)
 
 --- Controls the sequence of tutorial steps.
 -- @param tutorialKey (string): The key of the current tutorial.
 -- @param stepKey (number): The number of the current step.
-function base:TutorialSequence(tutorialKey, stepKey)
-    if (not IsValid(DANLIB_TUTORIAL)) then return end
+function DBase:TutorialSequence(tutorialKey, stepKey)
+    if (not _IsValid(DANLIB_TUTORIAL)) then
+        return
+    end
 
     local activeTutorialKey = DANLIB_TUTORIAL.tutorialKey
-    if (activeTutorialKey != tutorialKey) then return end
+    if (activeTutorialKey != tutorialKey) then
+        return
+    end
 
     local activeStepKey = DANLIB_TUTORIAL.stepKey
-    if (activeStepKey != stepKey) then return end
+    if (activeStepKey != stepKey) then
+        return
+    end
 
     local tutorialConfig = DanLib.BaseConfig.Tutorials[tutorialKey]
     if (not tutorialConfig.Steps[stepKey + 1]) then
-        DanLib.CookieUtils:Set('DanLib.TutorialCompleted', tutorialKey)
+        DCookieUtils:Set('DanLib.TutorialCompleted', tutorialKey)
 
         if DanLib.BaseConfig.Tutorials[tutorialKey + 1] then
             DANLIB_TUTORIAL:SetTutorial(tutorialKey + 1)
@@ -153,11 +192,11 @@ end
 
 --- Deletes the specified cookie.
 -- @param cookieName (string): The name of the cookie to delete.
-function base:TutorialDelete(cookieName)
+function DBase:TutorialDelete(cookieName)
     if (not cookieName) then
         error('cookieName is missing!')
         return
     end
-    DanLib.CookieUtils:Delete(cookieName)
+    DCookieUtils:Delete(cookieName)
 end
--- base:TutorialDelete('DanLib.TutorialCompleted')
+-- DBase:TutorialDelete('DanLib.TutorialCompleted')
