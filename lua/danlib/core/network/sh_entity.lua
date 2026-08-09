@@ -140,6 +140,19 @@ function EntityMeta:SetAutoFrameAdvance(enabled)
     return self
 end
 
+--- Sets the entity's static RenderGroup (e.g. RENDERGROUP_BOTH, RENDERGROUP_TRANSLUCENT).
+-- There is no runtime Entity:SetRenderGroup() method in GMod -- the render
+-- group for a scripted entity is read from a static ENT.RenderGroup field
+-- at registration time, the same way ENT.Type/ENT.Base are. Use this when a
+-- custom Draw/DrawTranslucent hook must fire regardless of the engine's
+-- automatic (RenderMode-based) render group detection.
+-- @param group (number): One of the RENDERGROUP_* enums.
+function EntityMeta:SetRenderGroup(group)
+    _assert(_type(group) == 'number', 'DanLib Entity:SetRenderGroup -- group must be a number (RENDERGROUP_* enum)')
+    self._renderGroup = group
+    return self
+end
+
 --- Declares a NetworkVar to be registered in SetupDataTables.
 -- Equivalent to calling self:NetworkVar(varType, index, name) inside SetupDataTables.
 -- @param varType (string): 'String', 'Int', 'Float', 'Bool', 'Entity', 'Vector', 'Angle'.
@@ -308,6 +321,9 @@ function EntityMeta:Register()
     ENT.Spawnable = self._spawnable or false
     ENT.AdminOnly = self._adminOnly or false
     ENT.AutomaticFrameAdvance = self._autoFrameAdvance or false
+    if self._renderGroup then
+        ENT.RenderGroup = self._renderGroup
+    end
 
     -- SetupDataTables
     if self._setupDataTables then

@@ -252,6 +252,14 @@ function DBase:CreateFont(name, size, font, weight)
     }
 
     surface.CreateFont(name, tbl)
+
+    D3D = D3D or { }
+    D3D._FontSpecs = D3D._FontSpecs or { }
+    D3D._FontSpecs[name] = DTable:Copy(tbl)
+
+    if (D3D and D3D.Text and D3D.Text.RegisterFont) then
+        D3D.Text.RegisterFont(name, tbl)
+    end
     fontCache[name] = nil
 end
 
@@ -286,6 +294,12 @@ function DBase:RegisterFont(name, tbl)
 
     DTable:Merge(final, tbl)
     surface.CreateFont(name, final)
+    D3D = D3D or { }
+    D3D._FontSpecs = D3D._FontSpecs or { }
+    D3D._FontSpecs[name] = table.Copy(final)
+    if (D3D and D3D.Text and D3D.Text.RegisterFont) then
+        D3D.Text.RegisterFont(name, final)
+    end
     fontCache[name] = nil
 end
 

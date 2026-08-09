@@ -2,7 +2,6 @@
  *   @addon         DanLib
  *   @component     Init
  *   @license       MIT License
- *   @version       3.4.0
  *   @release_date  10/04/2023
  *   @author        denchik, CastleKeeper
  *
@@ -23,7 +22,7 @@
 
 
 DanLib_AddonsName = 'DanLib Basic Library'
-DanLib_Version = '3.4.0'
+DanLib_Version = '3.5.0'
 DanLib_Author = '76561198405398290'
 DanLib_Key = 'DanLib-8f3A5c2E-9d1B7e4A-6c8F2b5D'
 DanLib_ReleaseDate = '10/4/2023'
@@ -153,6 +152,7 @@ elseif (SERVER) then
     AddCSLuaFile('danlib/core/sh_loader.lua')
 
     -- Resources
+    resource.AddFile('resource/fonts/Montserrat-Bold.ttf')
     resource.AddFile('resource/fonts/montserrat-medium.ttf')
     resource.AddFile('resource/fonts/montserrat-regular.ttf')
     
@@ -202,6 +202,16 @@ local function Start()
 
     -- Client utilities
     loader:IncludeDir('core/client')
+    -- 3D2D world-space panel system.
+    -- sh_d3dpanel.lua MUST load first so D3D namespace is available.
+    -- loader:Include('core/3d2d/sh_d3dpanel.lua')
+    -- The text helper is used by 3D2D widget paint callbacks, so load it
+    -- before the directory's other client modules.
+    -- loader:Include('core/3d2d/cl_d3dtext.lua', 'client')
+    -- loader:IncludeDir('core/3d2d', false, {
+    --     ['sh_d3dpanel.lua'] = true,
+    --     ['cl_d3dtext.lua'] = true
+    -- })
     -- Menu pages
     loader:IncludeDir('core/pages')
     -- HUD elements

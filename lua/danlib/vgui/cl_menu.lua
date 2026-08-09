@@ -274,7 +274,7 @@ function MenuBuilder:SetupSaveNotification(mainMenu)
         savePopup:SetDrawOnTop(true)
         savePopup:ApplyEvent(nil, function(sl, w, h)
             DUtils:DrawRoundedBox(0, 0, w, h, DBase:Theme('primary_notifi'))
-            DUtils:DrawOutlinedRoundedRect(6, 0, 0, w, h, 4, DBase:Theme('frame'))
+            -- DUtils:DrawOutlinedRoundedRect(6, 0, 0, w, h, 4, DBase:Theme('frame'))
             local squareSize = 64
             DUtils:DrawSquareWithIcon(8, (h - squareSize) * 0.5, DBase:Theme('secondary_dark'), squareSize, DanLib.TYPE['WARNING'], 6)
             DUtils:DrawDualTextWrap(squareSize + 24, h * 0.5, 'WARNING', 'danlib_font_18', DanLib.TYPE_COLOR['WARNING'], DBase:L('PlsRememberSaveChanges'), 'danlib_font_18', DBase:Theme('title'), TEXT_ALIGN_LEFT, nil, 200)

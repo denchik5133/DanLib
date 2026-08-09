@@ -149,8 +149,8 @@ function LOGS:Refresh()
     -- Log sorting
     for k, v in _pairs(values) do
         -- WE DELETE ONLY THE OLD EMPTY WEBHOOKS (if they remain in the config)
-        if (not v.Webhook or v.Webhook == '') then
-            DBase:PrintType('Logs', Color(255, 165, 0), ' Found empty webhook in config, removing: ', color_white, v.Name or k)
+        if (not v.Webhook and not v.WebhookConfigured) then
+            DBase:PrintType('Logs', Color(255, 165, 0), ' Found invalid webhook entry in config, removing: ', color_white, v.Name or k)
             values[k] = nil
         else
             DTable:Add(sorted, { k, k })
@@ -280,7 +280,9 @@ end
 -- @param values (table): Log data
 -- @param key (string): Log key
 function LOGS:EditWebhook(values, key)
-    DBase:RequestTextPopup(DBase:L('#webhook.url'), DBase:L('#webhook.url.Description'), values[key].Webhook, nil, function(webhook)
+    -- The current webhook is never sent to clients. An empty field means
+    -- "replace the configured webhook" and the server preserves it otherwise.
+    DBase:RequestTextPopup(DBase:L('#webhook.url'), DBase:L('#webhook.url.Description'), '', nil, function(webhook)
         values[key].Webhook = webhook
         DBase:TutorialSequence(4, 6)
         DBase:SetConfigVariable('BASE', 'Logs', values)

@@ -87,7 +87,7 @@ function DBase:CreateModelPanel(parent)
     --- Draws the background and frame around the model.
     Panel:ApplyEvent(nil, function(_, w, h)
         DanLib.Utils:DrawRoundedBox(0, 0, w, h, DBase:Theme('background'))
-        DanLib.Utils:DrawOutlinedRoundedRect(6, 0, 0, w, h, 4, DBase:Theme('frame'))
+        -- DanLib.Utils:DrawOutlinedRoundedRect(6, 0, 0, w, h, 4, DBase:Theme('frame'))
     end)
 
     -- Panel:ApplyEvent('PaintOver', function(sl, w, h)

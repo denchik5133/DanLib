@@ -56,7 +56,7 @@ COMMAND_GETMODEL.Run = function(pPlayer)
     end
 
     DBase:SendMessage(pPlayer, 0, DBase:L('model:'), Color(0, 255, 0), ent:GetModel(), color_white, DBase:L('#model.retrieved'))
-    pPlayer:SendLua('SetClipboardText("' .. ent:GetModel() .. '")')
+    pPlayer:SendLua('SetClipboardText(' .. string.format('%q', tostring(ent:GetModel() or '')) .. ')')
 end
 COMMAND_GETMODEL:Register()
 

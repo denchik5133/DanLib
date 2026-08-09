@@ -282,7 +282,7 @@ end
 -- @param iteration (number): Number of shadow iterations (default: 5)
 -- @return (Panel): self for the call chain
 function CHECKBOX:DisableShadows(distance, noClip, iteration)
-    self:ApplyShadow(distance or 10, noClip or false, iteration or 5)
+    self:ApplyShadow(distance or 10, noClip or false, iteration or 3)
     return self
 end
 
@@ -315,15 +315,15 @@ function CHECKBOX:Paint(w, h)
     local borderColor = _ColorAlpha(Color(37, 56, 79), disabledAlpha255)
     
     -- We draw the background and basic frames
-    DUtils:DrawRect(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, bgColor)
-    DUtils:DrawRect(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, btnColor)
-    DUtils:OutlinedRect(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, borderColor)
+    DUtils:DrawRoundedBox(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, bgColor)
+    DUtils:DrawRoundedBox(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, btnColor)
+    surface.DrawOutlinedRoundedRect(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, 6, 1, borderColor)
     
     -- Color frame and icon when turned on
     if self.value then
         local decorAlpha = hoverPercent * 100 * disabledAlpha
         local decorColor = DBase:Theme('decor', decorAlpha)
-        DUtils:OutlinedRect(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, decorColor)
+        surface.DrawOutlinedRoundedRect(checkboxX, checkboxY, self.checkboxSize, self.checkboxSize, 6, 1, decorColor)
         
         local IconSize = DBase:Scale(24)
         local iconX = checkboxX + (self.checkboxSize - IconSize) / 2

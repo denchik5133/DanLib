@@ -34,7 +34,9 @@ local _rad = math.rad
 local _min = math.min
 local _sin = math.sin
 local _cos = math.cos
-local _pow = function(a, b) return a ^ b end
+local _pow = function(a, b)
+    return a ^ b
+end
 local _ceil = math.ceil
 local _floor = math.floor
 local _Clamp = math.Clamp
@@ -598,15 +600,7 @@ end
 -- @param w (number): The width of the rectangle.
 -- @param h (number): The height of the rectangle.
 -- @param color (Color): The color of the outline (optional).
-function DUtils:DrawOutline(x, y, w, h, color)
-    color = color or color_white
-    local intSize = w / 13
-    draw_color(color)
-    draw_rect(x, y, intSize, 1) -- Top
-    draw_rect(x, y, 1, intSize) -- Left
-    draw_rect(x + w - intSize, y + h - 1, intSize, 1) -- Bottom
-    draw_rect(x + w - 1, y + h - intSize, 1, intSize) -- Right
-end
+function DUtils:DrawOutline(x, y, w, h, color) end
 
 --- Draws a rectangle with an outline.
 -- @param x (number): The x-coordinate of the rectangle.
@@ -617,7 +611,7 @@ end
 -- @param number width The width of the outline (optional).
 function DUtils:OutlinedRect(x, y, w, h, color, width)
     draw_color(color or color_white)
-    draw_outlined_rect(x or 0, y or 0, w or 0, h or 0)
+    draw_outlined_rect(x or 0, y or 0, w or 0, h or 0, width or 1)
 end
 
 --- Gets the size of the specified text in the given font.
@@ -2019,132 +2013,9 @@ do
 end
 
 do
-    --- Calculates the points of an arc.
-    -- @param x (number): The X coordinate of the arc's center.
-    -- @param y (number): The Y coordinate of the arc's center.
-    -- @param ang (number): The starting angle of the arc in degrees.
-    -- @param p (number): The angle to which the arc extends in degrees.
-    -- @param rad (number): The radius of the arc.
-    -- @param seg (number): The number of segments to divide the arc into (default is 80).
-    -- @return table: A table containing the coordinates of the arc points.
-    local function calculateArc(x, y, ang, p, rad, seg)
-        seg = seg or 80
-        ang = (-ang) + 180
-
-        local circle = { }
-        DTable:Add(circle, {
-            x = x,
-            y = y
-        })
-
-        for i = 0, seg do
-            local a = _rad((i / seg) * -p + ang)
-            DTable:Add(circle, {
-                x = x + _sin(a) * rad,
-                y = y + _cos(a) * rad
-            })
-        end
-
-        return circle
-    end
-    
-    --- Generates arcs with varying roundness and thickness.
-    -- This function creates several arcs based on predefined roundness and thickness values.
-    -- It uses the stencil buffer for rendering the arcs.
-    for roundness = 32, 8, -8 do
-        local index = roundness / 8
-        local multiplier = roundness * 2 / _pow(2, index)
-    
-        if (index == 1) then
-            multiplier = multiplier * 2
-        end
-    
-        for thickness = 1, 4 do
-            local scaledThickness = thickness * 64
-            local id = 'arc_' .. thickness .. '_' .. roundness
-    
-            spoly.Generate(id, function(w, h)
-                local startAng = 0
-                local endAng = 90
-                local radius = h
-                local x, y = 0, h
-
-                local arcInner = calculateArc(x - scaledThickness, y + scaledThickness, startAng, endAng, radius, 128, true)
-                local arcOuter = calculateArc(x, y, startAng, endAng, radius, 128, true)
-            
-                set_stencil_write_mask(255)
-                set_stencil_test_mask(255)
-                set_stencil_reference_value(0)
-                set_stencil_pass_operation(STENCIL_KEEP)
-                set_stencilZ_fail_operation(STENCIL_KEEP)
-                clear_stencil()
-
-                set_stencil_enable(true)
-                set_stencil_reference_value(1)
-                set_stencil_compare_function(STENCIL_NEVER)
-                set_stencil_fail_operation(STENCIL_REPLACE)
-
-                    draw_poly(arcInner)
-
-                set_stencil_compare_function(STENCIL_GREATER)
-                set_stencil_fail_operation(STENCIL_KEEP)
-                set_stencilZ_fail_operation(STENCIL_KEEP)
-
-                    draw_poly(arcOuter)
-
-                set_stencil_enable(false)
-            end) 
-        end
-    end
-
-    --- Draws an outlined rounded rectangle.
-    -- @param r (number): The radius of the corners of the rectangle.
-    -- @param x (number): The X coordinate of the top-left corner of the rectangle.
-    -- @param y (number): The Y coordinate of the top-left corner of the rectangle.
-    -- @param w (number): The width of the rectangle.
-    -- @param h (number): The height of the rectangle.
-    -- @param thickness (number): The thickness of the outline (default is 1).
-    -- @param color (table): The color of the outline in RGBA format.
+    -- Draws an outlined rounded rectangle.
     function DUtils:DrawOutlinedRoundedRect(r, x, y, w, h, thickness, color)
-        -- Set default thickness if not provided
-        local thickness = thickness or 1
-        -- Generate a unique identifier for the arc
-        local id = 'arc_' .. thickness .. '_' .. r
-
-        -- Adjust thickness based on the radius
-        thickness = _floor(r * 0.15)
-
-        -- Ensure width is an integer
-        local w = _ceil(w)
-        -- Ensure height is an integer
-        local h = _ceil(h)
-
-        -- Calculate half of the radius
-        local half = _round(r * .5)
-        -- Set the drawing color if provided
-        if color then
-            draw_color(color)
-        end
-
-        -- Draw the rounded corners using the arc identifier
-        -- Top-left corner
-        spoly.DrawRotated(id, x + half, y + half, r, r, 90)
-        -- Top-right corner
-        spoly.DrawRotated(id, x + w - half, y + half, r, r, 0)
-        -- Bottom-right corner
-        spoly.DrawRotated(id, x + w - half, y + h - half, r, r, 270)
-        -- Bottom-left corner
-        spoly.DrawRotated(id, x + half, y + h - half, r, r, 180)
-
-        -- Draw the sides of the rectangle
-        -- Top side
-        draw_rect(x + r, y, (w - r * 2), thickness)
-        -- Right side
-        draw_rect(x + w - thickness, y + r, thickness, (h - r * 2))
-        -- Bottom side
-        draw_rect(x + r, y + h - thickness, (w - r * 2), thickness)
-        -- Left side
-        draw_rect(x, y + r, thickness, (h - r * 2))
+        
     end
 end
 

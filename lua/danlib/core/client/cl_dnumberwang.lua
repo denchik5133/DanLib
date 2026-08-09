@@ -31,7 +31,7 @@ function DBase.CreateNumberWang(parent)
 	local Number = DCustomUtils(parent)
 
 	Number.numberWang = DCustomUtils(Number, 'DNumberWang')
-	Number.numberWang:Pin(FILL)
+	Number.numberWang:Pin()
 	Number.numberWang:DockMargin(2, 0, 2, 0)
 	Number.numberWang:SetFont('danlib_font_18')
 	Number.numberWang:SetText('')
@@ -136,9 +136,9 @@ function DBase.CreateNumberWang(parent)
 		end
 
 		local hoverPercent = self.hoverPercent / 100
-		DUtils:DrawRect(0, 0, w, h, DBase:Theme('decor_elements'))
-		DUtils:OutlinedRect(0, 0, w, h, DBase:Theme('frame'))
-		DUtils:OutlinedRect(0, 0, w, h, DBase:Theme('decor', hoverPercent * 100))
+		DUtils:DrawRoundedBox(0, 0, w, h, DBase:Theme('decor_elements'))
+		surface.DrawOutlinedRoundedRect(0, 0, w, h, 6, 1, DBase:Theme('frame'))
+		surface.DrawOutlinedRoundedRect(0, 0, w, h, 6, 1, DBase:Theme('decor', hoverPercent * 100))
 	end
 
 	return Number

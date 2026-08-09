@@ -361,7 +361,8 @@ function DBase.CreatePanelModules(parent)
             DanLib.DrawShadow:Begin()
             DUtils:DrawRoundedBox(x, y, w, h, themePrimaryNotifi)
             DanLib.DrawShadow:End(1, 1, 1, 255, 0, 0, false)
-            DanLib.Outline:Draw(6, x, y, w, h, themeFrame, nil, 1)
+            -- DanLib.Outline:Draw(6, x, y, w, h, themeFrame, nil, 1)
+            surface.DrawOutlinedRoundedRect(0, 0, w, h, 6, 1, themeFrame)
         end)
 
         -- Create a base panel for the popup content

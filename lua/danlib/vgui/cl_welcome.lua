@@ -46,7 +46,6 @@ local _FrameTime = FrameTime
 local _CurTime = CurTime
 local _Color = Color
 local _ColorAlpha = ColorAlpha
-local _LocalPlayer = LocalPlayer
 local _GetHostName = GetHostName
 local _drawDrawText = draw.DrawText
 local _drawSimpleText = draw.SimpleText
@@ -770,7 +769,7 @@ end
 -- MAIN FUNCTION
 local function RenderTutorialStep(container, stepIndex, onNext, onBack, settings)
     local step = TUTORIAL_STEPS[stepIndex]
-    local pPlayer = _LocalPlayer()
+    local pPlayer = LocalPlayer()
     local title = step.title:gsub('{player_name}', pPlayer:Nick())
     
     container:Clear()

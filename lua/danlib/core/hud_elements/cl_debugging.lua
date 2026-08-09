@@ -77,7 +77,7 @@ function DEBUG:Create(parent)
         debug_panel:ApplyEvent(nil, function(sl, w, h)
             DUtils:DrawRoundedMask(8, 0, 0, w, h, function()
                 DUtils:DrawRoundedBox(0, 0, w, h, DBase:Theme('primary_notifi'))
-                DUtils:DrawOutlinedRoundedRect(8, 0, 0, w, h, 4, DBase:Theme('frame'))
+                -- DUtils:DrawOutlinedRoundedRect(8, 0, 0, w, h, 4, DBase:Theme('frame'))
                 DUtils:DrawTextureGradient(0, 0, w, h, 0, 0, 4, 1, nil, 'vgui/alpha-back')
 
                 local squareSize = 64

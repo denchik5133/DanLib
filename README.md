@@ -2,7 +2,7 @@
 
 **A foundational library for Garry's Mod addons**, providing a unified infrastructure for networking, UI components, module configuration, themes, localization, and utilities. Developed since 2023 by **denchik** and **CastleKeeper**.
 
-> **Version:** 3.4.0 · **License:** MIT · **Workshop ID:** `2418668622`
+> **Version:** 3.5.0 · **License:** MIT · **Workshop ID:** `2418668622`
 
 ---
 

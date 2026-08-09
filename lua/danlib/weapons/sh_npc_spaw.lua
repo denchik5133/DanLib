@@ -54,6 +54,7 @@ local _tonumber = tonumber
 local _LerpVector = LerpVector
 local _mathMax = math.max
 local _mathMin = math.min
+local _type = type
 
 local MAX_SPAWN_DISTANCE = 500
 local NPC_CLASS = 'danlib_npc_spawn'
@@ -454,8 +455,16 @@ WEP:Register()
 if SERVER then
     DNet:On(NET_SELECT, function(len, pPlayer)
         local npcKey = DNet:Str()
-        if (npcKey and npcKey ~= '') then
-            pPlayer:SetNW2String('tool_npc_type', npcKey)
+        if (not _IsValid(pPlayer) or not pPlayer:IsPlayer()) then
+            return
         end
+
+        local npcConfig = DanLib.CONFIG.BASE.NPCs or { }
+        local isKnownKey = (_type(npcKey) == 'string' and npcKey ~= '' and (npcConfig[npcKey] or (_tonumber(npcKey) and npcConfig[_tonumber(npcKey)])))
+        if (not isKnownKey or not DBase.HasPermission(pPlayer, 'SpawnNPC')) then
+            return
+        end
+
+        pPlayer:SetNW2String('tool_npc_type', npcKey)
     end)
 end

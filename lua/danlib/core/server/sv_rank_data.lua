@@ -39,6 +39,7 @@ local _CurTime = CurTime
 local _osdate = os.date
 local _stringTrim = string.Trim
 local _stringMatch = string.match
+local _type = type
 
 -- CONSTANTS
 local RANK_DIR = 'danlib/rank/'
@@ -65,6 +66,33 @@ local OWNER_CACHE_DURATION = 60 -- Cache for 60 seconds
 -- Populated lazily on first broadcast/request, then kept in sync.
 -- Key: SteamID64 string. Value: parsed rank data table.
 local RankCache = nil
+
+--- Validates a SteamID64 before it is used in a data-file path.
+-- @param value string: SteamID64 received from a client
+-- @return boolean
+local function _isSteamID64(value)
+    return (_type(value) == 'string' and _stringMatch(value, '^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$') ~= nil)
+end
+
+--- Returns true only for a valid player entity.
+-- @param pPlayer Entity: Entity received from a network request
+-- @return boolean
+local function _isPlayer(pPlayer)
+    return (_IsValid(pPlayer) and pPlayer:IsPlayer())
+end
+
+--- Returns true when a rank is registered in the server configuration.
+-- Owner is deliberately excluded from normal rank assignment.
+-- @param rank string: Rank ID received from a client
+-- @return boolean
+local function _isAssignableRank(rank)
+    if (_type(rank) ~= 'string' or rank == '' or rank == OWNER_RANK) then
+        return false
+    end
+
+    local ranks = DanLib.ConfigMeta.BASE:GetValue('Ranks') or { }
+    return (_type(ranks[rank]) == 'table')
+end
 
 --- Initializes player rank data from a file
 -- @return table: The player's rank data
@@ -236,7 +264,7 @@ end
 
 --- Gets a list of all rank files and their contents
 DNet:On('DanLib.RequestRankData', function(len, pPlayer)
-    if (not _IsValid(pPlayer)) then
+    if (not _isPlayer(pPlayer) or not DBase.HasPermission(pPlayer, 'EditRanks')) then
         return
     end
 
@@ -295,7 +323,14 @@ DNet:On('DanLib.NetSetRank', function(_, actor)
     local pPlayer = DNet:Ent()
     local rank = DNet:Str()
 
-    if (not _IsValid(actor) or not _IsValid(pPlayer)) then
+    if (not _isPlayer(actor) or not DBase.HasPermission(actor, 'EditRanks')) then
+        if (_isPlayer(actor)) then
+            DBase:CreatePopupNotifi(actor, DBase:L('#access.denied'), DBase:L('#access.ver'), 'ERROR', 6)
+        end
+        return
+    end
+
+    if (not _isPlayer(pPlayer)) then
         return
     end
     
@@ -309,9 +344,9 @@ DNet:On('DanLib.NetSetRank', function(_, actor)
         return
     end
 
-    -- Prevent manual owner rank assignment
-    if (rank == OWNER_RANK) then
-        DBase:SendMessageTag(actor, tag, COLOR_RED, 'Error: ', COLOR_WHITE, 'Cannot manually assign owner rank! Use ', COLOR_YELLOW, 'danlib_force_owner', COLOR_WHITE, ' console command.')
+    -- Only registered non-owner ranks may be assigned through the network.
+    if (not _isAssignableRank(rank)) then
+        DBase:SendMessageTag(actor, tag, COLOR_RED, 'Error: ', COLOR_WHITE, 'Unknown or protected rank.')
         return
     end
 
@@ -342,8 +377,15 @@ DNet:On('DanLib.NetSetOfflineRank', function(_, actor)
     local steamID64 = DNet:Str()
     local newRank = DNet:Str()
     
-    if (not _IsValid(actor) or not DBase.HasPermission(actor, 'EditRanks')) then
-        DBase:CreatePopupNotifi(actor, DBase:L('#access.denied'), DBase:L('#access.ver'), 'ERROR', 6)
+    if (not _isPlayer(actor) or not DBase.HasPermission(actor, 'EditRanks')) then
+        if (_isPlayer(actor)) then
+            DBase:CreatePopupNotifi(actor, DBase:L('#access.denied'), DBase:L('#access.ver'), 'ERROR', 6)
+        end
+        return
+    end
+
+    if (not _isSteamID64(steamID64) or not _isAssignableRank(newRank)) then
+        DBase:SendMessageTag(actor, tag, COLOR_RED, 'Error: ', COLOR_WHITE, 'Invalid SteamID64 or rank.')
         return
     end
     
@@ -356,7 +398,7 @@ DNet:On('DanLib.NetSetOfflineRank', function(_, actor)
     local data = DNetworkUtil:JSONToTable(DFileUtil:Read(path, 'DATA') or '[]')
     local oldRank = data.Rank or DEFAULT_RANK
     
-    if (oldRank == OWNER_RANK or newRank == OWNER_RANK) then
+    if (oldRank == OWNER_RANK) then
         DBase:SendMessageTag(actor, tag, COLOR_RED, 'Error: ', COLOR_WHITE, 'Cannot change owner rank for offline players!')
         return
     end
@@ -374,8 +416,15 @@ end)
 DNet:On('DanLib.NetDeleteOfflinePlayer', function(_, actor)
     local steamID64 = DNet:Str()
     
-    if (not _IsValid(actor) or not DBase.HasPermission(actor, 'EditRanks')) then
-        DBase:CreatePopupNotifi(actor, DBase:L('#access.denied'), DBase:L('#access.ver'), 'ERROR', 6)
+    if (not _isPlayer(actor) or not DBase.HasPermission(actor, 'EditRanks')) then
+        if (_isPlayer(actor)) then
+            DBase:CreatePopupNotifi(actor, DBase:L('#access.denied'), DBase:L('#access.ver'), 'ERROR', 6)
+        end
+        return
+    end
+
+    if (not _isSteamID64(steamID64)) then
+        DBase:SendMessageTag(actor, tag, COLOR_RED, 'Error: ', COLOR_WHITE, 'Invalid SteamID64.')
         return
     end
     
@@ -486,7 +535,7 @@ DConcommand:Add('danlib_remove_owner', function(pPlayer, cmd, args)
     -- Logging
     DBase:Print('Owner file removed successfully.')
     DBase:Print('SECURITY LOG: Owner removed at ' .. _osdate('%Y-%m-%d %H:%M:%S'))
-    DBase:Print('Server is now without an owner. First player to use setup will become owner.')
+    DBase:Print('Server is now without an owner. Assign a new owner with danlib_force_owner <SteamID> [confirm].')
     
     -- We are notifying all administrators
     for _, ply in _ipairs(DPlayerUtil:GetAll()) do
@@ -662,31 +711,13 @@ end)
 
 --- Sets up the server owner (first-time setup)
 DNet:On('DanLib.SetupOwner', function(_, pPlayer)
-    if (not _IsValid(pPlayer)) then
-        return
-    end
-    
-    if (not DBase.RankData()) then
-        DBase.RankData()
-    end
-    
-    local currentOwner = DBase.InitOwnerServer()
-    -- Only allow setup if no owner exists
-    if (currentOwner and currentOwner ~= '') then
-        DBase:SendMessageTag(pPlayer, tag, COLOR_RED, 'Error: ', COLOR_WHITE, 'Owner already set! Use ', COLOR_YELLOW, 'danlib_force_owner', COLOR_WHITE, ' to change.')
+    if (not _isPlayer(pPlayer)) then
         return
     end
 
-    local newOwnerID = pPlayer:SteamID()
-    if _save_owner_file(newOwnerID) then
-        local data = pPlayer:InitPlayerRank()
-        data.Rank = OWNER_RANK
-        pPlayer:SetNWString('DanLib.RankID', OWNER_RANK)
-        _savePlayer(pPlayer, data)
-
-        DBase:PrintType('Logs', 'User ', pPlayer:Name(), ' has been determined to be the Owner of the server.')
-        DBase:SendMessageTag(pPlayer, tag, 'User ', COLOR_ORANGE, pPlayer:Name(), COLOR_WHITE, ' has been determined to be the ', COLOR_BLUE, 'Owner', COLOR_WHITE, ' of the server.')
-    end
+    -- Owner assignment is intentionally console-only. A missing or unreadable
+    -- owner file must never allow the first connected player to claim owner.
+    DBase:SendMessageTag(pPlayer, tag, COLOR_RED, 'Owner setup is disabled from the client. Use ', COLOR_YELLOW, 'danlib_force_owner <SteamID> [confirm]', COLOR_WHITE, ' in the server console.')
 end)
 
 --- Checks owner availability and notifies client
